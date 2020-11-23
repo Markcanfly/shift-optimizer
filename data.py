@@ -7,15 +7,12 @@ day_names = ['Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat', 
 shifts = list()
 for i, day_name in enumerate(day_names):
     shifts.append([
-        Shift(0, i, Time(8, 45), Time(16,00)),
-        Shift(1, i, Time(11, 00), Time(15,00)), 
-        Shift(2, i, Time(11, 00), Time(15,00)), 
-        Shift(3, i, Time(12, 00), Time(16,00)), 
-        Shift(4, i, Time(12, 00), Time(16,00)), 
-        Shift(5, i, Time(12, 00), Time(17,00)), 
-        Shift(6, i, Time(11, 30), Time(14,00)), 
-        Shift(7, i, Time(11, 30), Time(14,00)), 
-        Shift(8, i, Time(17, 00), Time(22,00)), 
-        Shift(9, i, Time(18, 00), Time(21,30)), 
-        Shift(10, i, Time(17, 00), Time(23,45))
+        Shift(0, i, beginning=Time(8, 45), end=Time(16,00)),
+        Shift(1, i, beginning=Time(11, 00), end=Time(15,00), capacity=2),
+        Shift(2, i, beginning=Time(12, 00), end=Time(16,00), capacity=2), 
+        Shift(3, i, beginning=Time(12, 00), end=Time(17,00)), 
+        Shift(4, i, beginning=Time(11, 30), end=Time(14,00), capacity=2),
+        Shift(5, i, beginning=Time(17, 00), end=Time(22,00)), 
+        Shift(6, i, beginning=Time(18, 00), end=Time(21,30)), 
+        Shift(7, i, beginning=Time(17, 00), end=Time(23,45))
         ])

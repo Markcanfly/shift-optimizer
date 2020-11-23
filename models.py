@@ -16,18 +16,19 @@ shift_names = [
     ]
 
 class Shift:
-    def __init__(self, id_, day_index, beggining, end):
+    def __init__(self, id_, day_index, beginning, end, capacity=1):
             self.id_ = id_
-            self.beggining = beggining
-            self.end = end
             self.day_index = day_index
+            self.capacity = capacity
+            self.beginning = beginning
+            self.end = end
     
     @classmethod
     def conflicts(cls, shift1, shift2) -> bool:
         return (shift1.beggining > shift2.beggining and shift1.beggining < shift2.end) or (shift1.end > shift2.beggining and shift1.end < shift2.end)
 
     def __repr__(self):
-        return f'Day:{day_names[self.day_index]} ID:{self.id_} Start:{self.beggining} End:{self.end}'
+        return f'Day:{day_names[self.day_index]} ID:{self.id_} Start:{self.beginning} End:{self.end}'
 
 class Application:
     def __init__(self, person, shift_id, preference_score):

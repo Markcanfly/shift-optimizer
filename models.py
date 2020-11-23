@@ -1,8 +1,9 @@
 class Shift:
-    def __init__(self, id_, beggining, end):
+    def __init__(self, id_, day_index, beggining, end):
             self.id_ = id_
             self.beggining = beggining
-            self.end
+            self.end = end
+            self.day_index = day_index
 
 class Application:
     def __init__(self, person, shift_id, preference_score):
@@ -32,3 +33,21 @@ class Choice:
 
     def overlaps(self) -> bool:
         pass
+
+class Time:
+    def __init__(self, hour, minute):
+        self.hour = hour
+        self.minute = minute
+        elf.time = hour*60 + minute
+    
+    def __gt__(self, other) -> bool:
+        return self.time > other.time
+
+    def __lt__(self, other) -> bool:
+        return self.time < other.time
+
+    def __eq___(self, other) -> bool:
+        return self.time == other.time
+
+    def __repr__(self):
+        return f"{hour}:{minute:02d}"

@@ -1,4 +1,19 @@
+"""Defines the classes to store objects relevant to the shifts in."""
+
 day_names = ['Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat', 'Vasárnap']
+shift_names = [
+    '08:45-11:00', 
+    '11:00-15:00', 
+    '11:00-15:00', 
+    '12:00-16:00', 
+    '12:00-16:00', 
+    '12:00-17:00', 
+    '11:30-14:00', 
+    '11:30-14:00', 
+    '17:00-22:00', 
+    '18:00-21:30', 
+    '17:00-23:45'
+    ]
 
 class Shift:
     def __init__(self, id_, day_index, beggining, end):
@@ -48,7 +63,7 @@ class Time:
         self.hour = hour
         self.minute = minute
         self.time = hour*60 + minute
-    
+
     def __gt__(self, other) -> bool:
         return self.time > other.time
 

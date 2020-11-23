@@ -1,9 +1,18 @@
+day_names = ['Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat', 'Vasárnap']
+
 class Shift:
     def __init__(self, id_, day_index, beggining, end):
             self.id_ = id_
             self.beggining = beggining
             self.end = end
             self.day_index = day_index
+    
+    @classmethod
+    def conflicts(cls, shift1, shift2) -> bool:
+        return (shift1.beggining > shift2.beggining and shift1.beggining < shift2.end) or (shift1.end > shift2.beggining and shift1.end < shift2.end)
+
+    def __repr__(self):
+        return f'Day:{day_names[self.day_index]} ID:{self.id_} Start:{self.beggining} End:{self.end}'
 
 class Application:
     def __init__(self, person, shift_id, preference_score):
@@ -11,7 +20,7 @@ class Application:
         self.shift_id = shift_id
         self.preference_score = preference_score
 
-    def __repr__(self):
+    def __repr__(self): # TODO switch these out with fstrings
         return "{0} {1} #{2}".format(self.person, shift_names[self.shift_id], self.preference_score)
 
 class Person:
@@ -38,7 +47,7 @@ class Time:
     def __init__(self, hour, minute):
         self.hour = hour
         self.minute = minute
-        elf.time = hour*60 + minute
+        self.time = hour*60 + minute
     
     def __gt__(self, other) -> bool:
         return self.time > other.time
@@ -50,4 +59,4 @@ class Time:
         return self.time == other.time
 
     def __repr__(self):
-        return f"{hour}:{minute:02d}"
+        return f"{self.hour}:{self.minute:02d}"

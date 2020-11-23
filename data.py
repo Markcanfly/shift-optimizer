@@ -4,9 +4,9 @@ from models import Shift, Time
 
 day_names = ['Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat', 'Vasárnap']
 
-shifts = dict()
+shifts = list()
 for i, day_name in enumerate(day_names):
-    shifts[day_name] = [
+    shifts.append([
         Shift(0, i, Time(8, 45), Time(16,00)),
         Shift(1, i, Time(11, 00), Time(15,00)), 
         Shift(2, i, Time(11, 00), Time(15,00)), 
@@ -18,4 +18,4 @@ for i, day_name in enumerate(day_names):
         Shift(8, i, Time(17, 00), Time(22,00)), 
         Shift(9, i, Time(18, 00), Time(21,30)), 
         Shift(10, i, Time(17, 00), Time(23,45))
-        ]
+        ])

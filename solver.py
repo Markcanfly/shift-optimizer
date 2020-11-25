@@ -98,27 +98,6 @@ class ShiftModel(cp_model.CpModel):
         return people
 
     @staticmethod
-    def get_capacities(shifts):
-        """Extract the shift data from a raw list
-        Args:
-            shifts: list of (day_id, shift_id, capacity) tuples
-        Returns:
-            dictionary with keys for each day, containing capacity of each shift for that day
-                e.g. capacity[day_id1][shift_id1] = 1
-        """
-        days = {}
-        for shift in shifts:
-            day_id = shift[0]
-            if day_id not in days.keys():
-                days[day_id] = {}
-        for shift in shifts:
-            day_id = shift[0]
-            shift_id = shift[1]
-            capacity = shift[2]
-            days[day_id][shift_id] = capacity
-        return capacity
-
-    @staticmethod
     def get_days(preferences):
         """Extract days data from preferences list
         Args:

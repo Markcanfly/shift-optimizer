@@ -61,18 +61,9 @@ class ShiftModel(cp_model.CpModel):
             capacity = shift[2]
             capacity[day_id][shift] = capacity
         
-        applied_to_shift = dict() # Create storage
-        for day_id in range(7):
-            applied_to_shift[day_id] = dict()
-            for shift_id in range(self.n_shifts):
-                applied_to_shift[day_id][shift_id] = list()
-        
-        for (day_id, shift_id, person_id), variable in enumerate(self.variables): # index to storage
-            applied_to_shift[day_id][shift_id].append(variable)
-        
         for day_id in range(7):
             for shift_id in range(self.n_shifts):
-                self.Add(sum(applied_to_shift[day_id][shift_id]) == capacity[day_id][shift_id])
+                self.Add(sum([self.variables[(day_id, shift_id, person_id)] for person_id in range(self.n_people)]) == capacity[day_id][shift_id])
 
     @staticmethod
     def get_people(preferences):
@@ -131,7 +122,6 @@ class ShiftModel(cp_model.CpModel):
             days.add(pref[0])
         return days
 
-# TODO add no-timeconflict criteria
 # TODO add minimum weekly work hours criteria
 # TODO add minimum one long shift criteria
 # TODO add no overlapping shifts assigned to the same person criteria

@@ -29,6 +29,7 @@ class ShiftModel(cp_model.CpModel):
         self.constraint_pref_only()
         self.constraint_shift_capacity()
         self.constraint_work_hours(25, 35)
+        self.constraint_long_shift()
 
     def constraint_pref_only(self):
         """Make sure that employees only get assigned to a shift
@@ -84,6 +85,22 @@ class ShiftModel(cp_model.CpModel):
                     work_hours += self.variables[(day_id, shift_id, person_id)] * hours_of_shift[day_id][shift_id]
             self.Add(min < work_hours and work_hours < max)
 
+    def constraint_long_shift(self):
+        """Make sure that everyone works at least one long shift.
+        """
+        hours_of_shift = dict() # calculate shift hours
+
+        for shift in self.shifts:
+            hours_of_shift[(shift[0], shift[1])] = shift[4] - shift[3]
+        
+        for person_id in range(self.n_people):
+            has_long_shift = False
+            for day_id in range(7):
+                for shift_id in range(self.n_shifts):
+                    if self.variables[(day_id, shift_id, person_id)]*hours_of_shift[day_id][shift_id] >= 5:
+                        has_long_shift = True
+            self.Add(has_long_shift)
+
     @staticmethod
     def get_people(preferences):
         """Extract the set of people from a raw list
@@ -110,7 +127,6 @@ class ShiftModel(cp_model.CpModel):
             days.add(pref[0])
         return days
 
-# TODO add minimum one long shift criteria
 # TODO add no overlapping shifts assigned to the same person criteria
 # TODO add function to Minimize: preference cost
     # the simplest approach is to just sum up the preference scores for each shift

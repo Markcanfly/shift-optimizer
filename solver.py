@@ -1,7 +1,6 @@
 from ortools.sat.python import cp_model
 from data import shifts
 from models import Shift # For IntelliSense
-import json
 
 class ShiftModel(cp_model.CpModel):
     """Shift solver
@@ -13,7 +12,7 @@ class ShiftModel(cp_model.CpModel):
     """
     def __init__(self, shifts, preferences):
         """Args:
-            shifts: list of (day_id, shift_id, capacity) tuples
+            shifts: list of (day_id, shift_id, capacity, from, to) tuples where
             preferences: list of (day_id, shift_id, person_id, pref_score) tuples
         """
         super.__init__()
@@ -27,10 +26,11 @@ class ShiftModel(cp_model.CpModel):
             shift_id = shift[1]
             for person_id in range(self.n_people):
                 self.variables[(day_id, shift_id, person_id)] = self.NewBoolVar(f'Day{day_id} Shift{shift_id} Person{person_id}')
-        self.constraints_pref_only()
-        self.constraints_shift_capacity()
+        self.constraint_pref_only()
+        self.constraint_shift_capacity()
+        self.constraint_work_hours(25, 35)
 
-    def constraints_pref_only(self):
+    def constraint_pref_only(self):
         """Make sure that employees only get assigned to a shift
         that they signed up for.
         """
@@ -48,7 +48,7 @@ class ShiftModel(cp_model.CpModel):
             if not has_pref[day_id][shift_id][person_id]:
                 self.Add(variable == False)
 
-    def constraints_shift_capacity(self):
+    def constraint_shift_capacity(self):
         """Make sure that there are exactly as many employees assigned
         to a shift as it has capacity.
         """
@@ -64,6 +64,25 @@ class ShiftModel(cp_model.CpModel):
         for day_id in range(7):
             for shift_id in range(self.n_shifts):
                 self.Add(sum([self.variables[(day_id, shift_id, person_id)] for person_id in range(self.n_people)]) == capacity[day_id][shift_id])
+
+    def constraint_work_hours(self, min, max):
+        """Make sure that everyone works the minimum number of hours,
+        and no one works too much.
+        Args:
+            min: the minimum number of hours
+            max: the maximum number of hours
+        """
+        hours_of_shift = dict() # calculate shift hours
+
+        for shift in self.shifts:
+            hours_of_shift[(shift[0], shift[1])] = shift[4] - shift[3]
+
+        for person_id in range(self.n_people):
+            work_hours = 0
+            for day_id in range(7):
+                for shift_id in range(self.n_shifts):
+                    work_hours += self.variables[(day_id, shift_id, person_id)] * hours_of_shift[day_id][shift_id]
+            self.Add(min < work_hours and work_hours < max)
 
     @staticmethod
     def get_people(preferences):
@@ -99,16 +118,6 @@ class ShiftModel(cp_model.CpModel):
             days[day_id][shift_id] = capacity
         return capacity
 
-    # @staticmethod
-    # def get_pref(preferences):
-    #     """Extract preferences data from raw list
-    #     Args:
-    #         preferences: list of (day_id, shift_id, person_id, pref_score) tuples
-    #     Returns:
-    #         dictionary with preference scores score[day][shift][person]
-    #     """
-    #     # Initialize empty dicts for preference scores
-    
     @staticmethod
     def get_days(preferences):
         """Extract days data from preferences list
@@ -122,7 +131,6 @@ class ShiftModel(cp_model.CpModel):
             days.add(pref[0])
         return days
 
-# TODO add minimum weekly work hours criteria
 # TODO add minimum one long shift criteria
 # TODO add no overlapping shifts assigned to the same person criteria
 # TODO add function to Minimize: preference cost

@@ -1,5 +1,6 @@
 from ortools.sat.python import cp_model
-from data import shifts
+from data import flat_shifts
+from generate_preferences import requests
 from models import Shift # For IntelliSense
 from itertools import combinations
 
@@ -29,7 +30,7 @@ class ShiftModel(cp_model.CpModel):
                 self.variables[(day_id, shift_id, person_id)] = self.NewBoolVar(f'Day{day_id} Shift{shift_id} Person{person_id}')
         self.constraint_pref_only()
         self.constraint_shift_capacity()
-        self.constraint_work_hours(25, 35)
+        self.constraint_work_hours(5, 35)
         self.constraint_long_shift()
 
     def constraint_pref_only(self):

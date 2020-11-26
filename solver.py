@@ -1,6 +1,7 @@
 from ortools.sat.python import cp_model
 from data import shifts
 from models import Shift # For IntelliSense
+from itertools import combinations
 
 class ShiftModel(cp_model.CpModel):
     """Shift solver
@@ -99,7 +100,22 @@ class ShiftModel(cp_model.CpModel):
                 for shift_id in range(self.n_shifts):
                     if self.variables[(day_id, shift_id, person_id)]*hours_of_shift[day_id][shift_id] >= 5:
                         has_long_shift = True
-            self.Add(has_long_shift)
+            self.Add(has_long_shift) # Not sure this should work without directly referencing the variables
+
+    def constraint_no_conflict(self):
+        """Make sure that no one has two shifts on a day that overlap.
+        """
+        conflicting_pairs = set() # assuming every day has the same shifts
+        for s1, s2 in combinations(self.shifts):
+            if (s2[3] < s1[3] and s1[3] < s2[4]) or (s2[3] < s1[4] and s1[4] < s2[4]): # Test conflict
+                conflicting_pairs.add((s1[1], s2[1])) # add their ids
+
+        # find pairs of incompatible (day,shift) ids
+        for p in range(self.n_people):
+            for d in range(7):
+                for s1_id, s2_id in conflicting_pairs:
+                    # Both of them can't be true for the same person
+                    self.Add(not(self.variables[(d, s1_id, p)] and self.variables[(d, s2_id, p)]))
 
     @staticmethod
     def get_people(preferences):

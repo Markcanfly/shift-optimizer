@@ -89,18 +89,16 @@ class ShiftModel(cp_model.CpModel):
     def constraint_long_shift(self):
         """Make sure that everyone works at least one long shift.
         """
-        hours_of_shift = dict() # calculate shift hours
-
+        long_shifts = set() # find long shift ids
         for shift in self.shifts:
-            hours_of_shift[(shift[0], shift[1])] = shift[4] - shift[3]
-        
+            if shift[4] - shift[3] > 5: # Number of hours
+                long_shifts.add(shift[1])
         for person_id in range(self.n_people):
-            has_long_shift = False
-            for day_id in range(7):
-                for shift_id in range(self.n_shifts):
-                    if self.variables[(day_id, shift_id, person_id)]*hours_of_shift[day_id][shift_id] >= 5:
-                        has_long_shift = True
-            self.Add(has_long_shift) # Not sure this should work without directly referencing the variables
+            self.Add(
+                sum(
+                    [sum([self.variables[(d,s,person_id)] for s in long_shifts]) for d in range(7)]
+                ) > 0
+            ) # Any one of these has to be true -> sum > 0
 
     def constraint_no_conflict(self):
         """Make sure that no one has two shifts on a day that overlap.
@@ -143,7 +141,6 @@ class ShiftModel(cp_model.CpModel):
             days.add(pref[0])
         return days
 
-# TODO add no overlapping shifts assigned to the same person criteria
 # TODO add function to Minimize: preference cost
     # the simplest approach is to just sum up the preference scores for each shift
 

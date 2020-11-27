@@ -1,6 +1,6 @@
 from ortools.sat.python import cp_model
 from data import flat_shifts
-from generate_preferences import requests
+from generate_preferences import get_requests
 from models import Shift # For IntelliSense
 from itertools import combinations
 
@@ -17,9 +17,9 @@ class ShiftModel(cp_model.CpModel):
             shifts: list of (day_id, shift_id, capacity, from, to) tuples where
             preferences: list of (day_id, shift_id, person_id, pref_score) tuples
         """
-        super.__init__()
+        super().__init__()
         self.n_people = len(ShiftModel.get_people(preferences))
-        self.n_shifts = len(shifts)
+        self.n_shifts = ShiftModel.get_n_shifts(shifts)
         self.shifts = shifts
         self.preferences = preferences
         self.variables = {}
@@ -30,7 +30,7 @@ class ShiftModel(cp_model.CpModel):
                 self.variables[(day_id, shift_id, person_id)] = self.NewBoolVar(f'Day{day_id} Shift{shift_id} Person{person_id}')
         self.constraint_pref_only()
         self.constraint_shift_capacity()
-        self.constraint_work_hours(5, 35)
+        self.constraint_work_mins(5*60, 35*60)
         self.constraint_long_shift()
 
     def constraint_pref_only(self):
@@ -47,9 +47,9 @@ class ShiftModel(cp_model.CpModel):
         for pref in self.preferences: # overwrite to two if the employee signed up with any pref score
             has_pref[pref[0]][pref[1]][pref[2]] = True
 
-        for (day_id, shift_id, person_id), variable in enumerate(self.variables):
+        for (day_id, shift_id, person_id) in self.variables.keys():
             if not has_pref[day_id][shift_id][person_id]:
-                self.Add(variable == False)
+                self.Add(self.variables[(day_id, shift_id, person_id)] == False)
 
     def constraint_shift_capacity(self):
         """Make sure that there are exactly as many employees assigned
@@ -58,34 +58,31 @@ class ShiftModel(cp_model.CpModel):
         capacity = dict() # index capacities
         for day_id in range(7):
             capacity[day_id] = dict()
-        for shift in self.shifts:
-            day_id = shift[0]
-            shift = shift[1]
-            capacity = shift[2]
-            capacity[day_id][shift] = capacity
+        for (d, s, c, f, t) in self.shifts:
+            capacity[d][s] = c
         
         for day_id in range(7):
             for shift_id in range(self.n_shifts):
                 self.Add(sum([self.variables[(day_id, shift_id, person_id)] for person_id in range(self.n_people)]) == capacity[day_id][shift_id])
 
-    def constraint_work_hours(self, min, max):
-        """Make sure that everyone works the minimum number of hours,
+    def constraint_work_mins(self, min, max):
+        """Make sure that everyone works the minimum number of minutes,
         and no one works too much.
         Args:
-            min: the minimum number of hours
-            max: the maximum number of hours
+            min: the minimum number of minutes
+            max: the maximum number of minutes
         """
-        hours_of_shift = dict() # calculate shift hours
+        mins_of_shift = dict() # calculate shift hours
 
         for shift in self.shifts:
-            hours_of_shift[(shift[0], shift[1])] = shift[4] - shift[3]
+            mins_of_shift[(shift[0], shift[1])] = shift[4] - shift[3]
 
         for person_id in range(self.n_people):
-            work_hours = 0
+            work_mins = 0
             for day_id in range(7):
                 for shift_id in range(self.n_shifts):
-                    work_hours += self.variables[(day_id, shift_id, person_id)] * hours_of_shift[day_id][shift_id]
-            self.Add(min < work_hours and work_hours < max)
+                    work_mins += self.variables[(day_id, shift_id, person_id)] * mins_of_shift[(day_id,shift_id)]
+            self.Add(min < work_mins and work_mins < max)
 
     def constraint_long_shift(self):
         """Make sure that everyone works at least one long shift.
@@ -141,6 +138,42 @@ class ShiftModel(cp_model.CpModel):
         for pref in preferences:
             days.add(pref[0])
         return days
+
+    @staticmethod
+    def get_n_shifts(shifts):
+        n_shifts = 0
+        for shift in shifts:
+            n_shifts = shift[1]
+        return n_shifts + 1 # 0-indexed
+
+class ShiftSolutionPrinter(cp_model.CpSolverSolutionCallback):
+    """Print intermediate solutions."""
+    def __init__(self, model, sols):
+        cp_model.CpSolverSolutionCallback.__init__(self)
+        self._m = model
+        self._sols = set(sols)
+        self._sol_count = 0
+
+    def on_solution_callback(self):
+        print(f'Solution #{self._sol_count}')
+        for d in range(7):
+            print(f'Day {d}:')
+            for s in range(self._m.n_shifts):
+                print(f'    Shift {s}')
+                for p in range(self._m.n_people):
+                    print(f'        Person {p}')
+        print()
+        self._sol_count += 1
+
+    def solution_count(self):
+        return self._sol_count
+
+if __name__ == "__main__":
+    requests = get_requests(20, 8, 3, 4)
+    model = ShiftModel(flat_shifts, requests)
+    solver = cp_model.CpSolver()
+    sol_printer = ShiftSolutionPrinter(model, range(5))
+    solver.SearchForAllSolutions(model, sol_printer)    
 
 # TODO add function to Minimize: preference cost
     # the simplest approach is to just sum up the preference scores for each shift

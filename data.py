@@ -18,8 +18,9 @@ for i, day_name in enumerate(day_names):
         ])
 
 flat_shifts = []
-for s in shifts:
-    begin = s.beginning.time / 60 # in hours
-    end = s.end.time / 60
-    flat_shifts.append((s.day_index, s.id_, s.capacity, begin, end))
+for day_shifts in shifts:
+    for s in day_shifts:
+        begin = s.beginning.time # in minutes
+        end = s.end.time
+        flat_shifts.append((s.day_index, s.id_, s.capacity, begin, end))
 

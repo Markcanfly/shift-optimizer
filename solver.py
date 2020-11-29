@@ -115,7 +115,7 @@ class ShiftModel(cp_model.CpModel):
     def maximize_welfare(self):
         pref = dict() # Index preference scores
         for praw in self.preferences:
-            pref[(praw[:2])] = praw[3]
+            pref[(praw[:3])] = praw[3]
         
         for works_id in self.variables.keys():
             if works_id not in pref.keys():
@@ -233,15 +233,30 @@ if __name__ == "__main__":
     model = ShiftModel(flat_shifts, requests)
     solver = cp_model.CpSolver()
     solver.Solve(model)
+    pref = dict() # Index preference scores
+    for praw in model.preferences:
+        pref[(praw[:3])] = praw[3]
+    
+    try:
+        for d, shifts in model.daily_shifts.items():
+            print(f'Day {d}:')
+            for s in shifts:
+                print(f'    Shift {s}')
+                for p in model.people:
+                    if solver.Value(model.variables[(d,s,p)]):
+                        print(f'        Person {p} with preference {pref[(d,s,p)]}')
+            print()
+        print(solver.ObjectiveValue())
 
-    for d, shifts in model.daily_shifts.items():
-        print(f'Day {d}:')
-        for s in shifts:
-            print(f'    Shift {s}')
-            for p in model.people:
-                if solver.Value(model.variables[(d,s,p)]):
-                    print(f'        Person {p}')
-        print()
-    print(solver.ObjectiveValue())
+        for p in model.people:
+            work_hours=0
+            for d, shifts in model.daily_shifts.items():
+                for s in shifts:
+                    s_hours = (model.sdata[(d,s)][2] - model.sdata[(d,s)][1]) / 60
+                    work_hours += solver.Value(model.variables[d,s,p]) * s_hours
+            print(f'{p} works {work_hours} hours.')
 
+    except IndexError:
+        print('No solution found.')
 # Hint https://developers.google.com/optimization/scheduling/employee_scheduling
+# TODO no other shift on long shif day(s)

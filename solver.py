@@ -55,7 +55,8 @@ class ShiftModel(cp_model.CpModel):
         """
         for d in self.days:
             for s in self.shifts:
-                self.Add(sum(self.variables[(d, s, p)] for p in self.people) == 1)
+                self.Add(sum(self.variables[(d, s, p)] for p in self.people) >= 1)
+                self.Add(sum(self.variables[(d, s, p)] for p in self.people) <= self.sdata[(d,s)][0])
 
     def constraint_work_mins(self, min, max):
         """Make sure that everyone works the minimum number of minutes,

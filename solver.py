@@ -31,8 +31,8 @@ class ShiftModel(cp_model.CpModel):
         self.constraint_pref_only()
         self.constraint_shift_capacity()
         self.constraint_long_shift()
-        self.constraint_work_mins(17*60, 23*60)
-        #self.constraint_no_conflict()
+        self.constraint_work_mins(18*60, 22*60)
+        self.constraint_no_conflict()
 
     def constraint_pref_only(self):
         """Make sure that employees only get assigned to a shift
@@ -101,14 +101,14 @@ class ShiftModel(cp_model.CpModel):
         """
         conflicting_pairs = set() # assuming every day has the same shifts
         for ((d1,s1),(c1, b1, e1)), ((d2,s2),(c2, b2,e2)) in combinations(self.sdata.items(), r=2):
-            if (b2 < b1 and b1 < e2) or (b2 < e1 and e1 < e2): # Test conflict
-                conflicting_pairs.add((s1, s2)) # add their ids
+            if (d1==d2) and ((b2 < b1 and b1 < e2) or (b2 < e1 and e1 < e2)): # Test conflict
+                conflicting_pairs.add(((d1,s1),(d2,s2))) # add their ids
 
         # find pairs of incompatible (day,shift) ids
-        for d, shifts in self.daily_shifts.keys():
-            for s1, s2 in ((0, 1),):
-                    # Both of them can't be true for the same person
-                    self.Add(self.variables[(d,s1,p)] + self.variables[(d,s2,p)] < 2)
+        for p in self.people:
+            for (d1,s1),(d2,s2) in conflicting_pairs:
+                # Both of them can't be true for the same person
+                self.Add(self.variables[(d1,s1,p)] + self.variables[(d2,s2,p)] < 2)
 
     @staticmethod
     def get_daily_shifts(shiftlist):
@@ -221,5 +221,6 @@ if __name__ == "__main__":
 
 # TODO add function to Minimize: preference cost
     # the simplest approach is to just sum up the preference scores for each shift
+# TODO? shift capacity constraint enyhítés for realism
 
 # Hint https://developers.google.com/optimization/scheduling/employee_scheduling

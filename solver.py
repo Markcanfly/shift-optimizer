@@ -200,7 +200,7 @@ class ShiftSolutionPrinter(cp_model.CpSolverSolutionCallback):
         return self._sol_count
 
 if __name__ == "__main__":
-    requests = get_requests(20, 8, 3, 4)
+    requests = get_requests(14, 8, 7, 4)
     model = ShiftModel(flat_shifts, requests)
     solver = cp_model.CpSolver()
     sol_printer = ShiftSolutionPrinter(model, range(5))

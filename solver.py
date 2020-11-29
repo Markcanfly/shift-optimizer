@@ -33,6 +33,7 @@ class ShiftModel(cp_model.CpModel):
         self.constraint_long_shift()
         self.constraint_work_mins(18*60, 22*60)
         self.constraint_no_conflict()
+        self.maximize_welfare()
 
     def constraint_pref_only(self):
         """Make sure that employees only get assigned to a shift
@@ -102,14 +103,28 @@ class ShiftModel(cp_model.CpModel):
         """
         conflicting_pairs = set() # assuming every day has the same shifts
         for ((d1,s1),(c1, b1, e1)), ((d2,s2),(c2, b2,e2)) in combinations(self.sdata.items(), r=2):
-            if (d1==d2) and ((b2 < b1 and b1 < e2) or (b2 < e1 and e1 < e2)): # Test conflict
-                conflicting_pairs.add(((d1,s1),(d2,s2))) # add their ids
+            if (d1==d2) and (((b2 < b1 < e2) or (b2 < e1 < e2)) or (((b1 < b2 < e1) or (b1 < e2 < e1)))): # Test conflict
+                conflicting_pairs.add((d1,(s1,s2))) # add their ids
 
         # find pairs of incompatible (day,shift) ids
         for p in self.people:
-            for (d1,s1),(d2,s2) in conflicting_pairs:
+            for d,(s1,s2) in conflicting_pairs:
                 # Both of them can't be true for the same person
-                self.Add(self.variables[(d1,s1,p)] + self.variables[(d2,s2,p)] < 2)
+                self.Add(self.variables[(d,s1,p)] + self.variables[(d,s2,p)] < 2)
+
+    def maximize_welfare(self):
+        pref = dict() # Index preference scores
+        for praw in self.preferences:
+            pref[(praw[:2])] = praw[3]
+        
+        for works_id in self.variables.keys():
+            if works_id not in pref.keys():
+                pref[works_id] = 0
+
+        self.Minimize(
+            sum([works*pref[works_id] for works_id, works in self.variables.items()])
+        )
+        
 
     @staticmethod
     def get_daily_shifts(shiftlist):
@@ -214,13 +229,19 @@ class ShiftSolutionPrinter(cp_model.CpSolverSolutionCallback):
         return self._sol_count
 
 if __name__ == "__main__":
-    requests = get_requests(14, 8, 6, 4)
+    requests = get_requests(14, 8, 4, 3)
     model = ShiftModel(flat_shifts, requests)
     solver = cp_model.CpSolver()
-    sol_printer = ShiftSolutionPrinter(model, range(5))
-    solver.SearchForAllSolutions(model, sol_printer)
+    solver.Solve(model)
 
-# TODO add function to Minimize: preference cost
-    # the simplest approach is to just sum up the preference scores for each shift
+    for d, shifts in model.daily_shifts.items():
+        print(f'Day {d}:')
+        for s in shifts:
+            print(f'    Shift {s}')
+            for p in model.people:
+                if solver.Value(model.variables[(d,s,p)]):
+                    print(f'        Person {p}')
+        print()
+    print(solver.ObjectiveValue())
 
 # Hint https://developers.google.com/optimization/scheduling/employee_scheduling

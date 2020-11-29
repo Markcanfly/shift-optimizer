@@ -56,7 +56,8 @@ class ShiftModel(cp_model.CpModel):
         """
         for d, shifts in self.daily_shifts.items():
             for s in shifts:
-                self.Add(sum(self.variables[(d, s, p)] for p in self.people) == self.sdata[(d,s)][0])
+                self.Add(1 <= sum(self.variables[(d, s, p)] for p in self.people))
+                self.Add(sum(self.variables[(d, s, p)] for p in self.people) <= self.sdata[(d,s)][0])
 
     def constraint_work_mins(self, min, max):
         """Make sure that everyone works the minimum number of minutes,
@@ -213,7 +214,7 @@ class ShiftSolutionPrinter(cp_model.CpSolverSolutionCallback):
         return self._sol_count
 
 if __name__ == "__main__":
-    requests = get_requests(14, 8, 7, 4)
+    requests = get_requests(14, 8, 6, 4)
     model = ShiftModel(flat_shifts, requests)
     solver = cp_model.CpSolver()
     sol_printer = ShiftSolutionPrinter(model, range(5))
@@ -221,6 +222,5 @@ if __name__ == "__main__":
 
 # TODO add function to Minimize: preference cost
     # the simplest approach is to just sum up the preference scores for each shift
-# TODO? shift capacity constraint enyhítés for realism
 
 # Hint https://developers.google.com/optimization/scheduling/employee_scheduling

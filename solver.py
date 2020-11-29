@@ -28,10 +28,12 @@ class ShiftModel(cp_model.CpModel):
             for s in self.shifts:
                 for p in self.people:
                     self.variables[(d, s, p)] = self.NewBoolVar(f'Day{d} Shift{s} Person{p}')
+        
         self.constraint_pref_only()
         self.constraint_shift_capacity()
-        #self.constraint_long_shift()
+        self.constraint_long_shift()
         self.constraint_work_mins(10*60, 35*60)
+        self.constraint_no_conflict()
 
     def constraint_pref_only(self):
         """Make sure that employees only get assigned to a shift
@@ -96,20 +98,20 @@ class ShiftModel(cp_model.CpModel):
                 sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) > 0
             ) # Any one of these has to be true -> sum > 0
 
-    # def constraint_no_conflict(self):
-    #     """Make sure that no one has two shifts on a day that overlap.
-    #     """
-    #     conflicting_pairs = set() # assuming every day has the same shifts
-    #     for s1, s2 in combinations(self.shifts):
-    #         if (s2[3] < s1[3] and s1[3] < s2[4]) or (s2[3] < s1[4] and s1[4] < s2[4]): # Test conflict
-    #             conflicting_pairs.add((s1[1], s2[1])) # add their ids
+    def constraint_no_conflict(self):
+        """Make sure that no one has two shifts on a day that overlap.
+        """
+        conflicting_pairs = set() # assuming every day has the same shifts
+        for ((d1,s1),(c1, b1, e1)), ((d2,s2),(c2, b2,e2)) in combinations(self.sdata.items(), r=2):
+            if (b2 < b1 and b1 < e2) or (b2 < e1 and e1 < e2): # Test conflict
+                conflicting_pairs.add((s1, s2)) # add their ids
 
-    #     # find pairs of incompatible (day,shift) ids
-    #     for p in range(self.n_people):
-    #         for d in range(7):
-    #             for s1_id, s2_id in conflicting_pairs:
-    #                 # Both of them can't be true for the same person
-    #                 self.Add(not(self.variables[(d, s1_id, p)] and self.variables[(d, s2_id, p)]))
+        # find pairs of incompatible (day,shift) ids
+        for p in self.people:
+            for d in self.days:
+                for s1, s2 in ((0, 1),):
+                    # Both of them can't be true for the same person
+                    self.Add(self.variables[(d,s1,p)] + self.variables[(d,s2,p)] < 2)
 
     @staticmethod
     def get_people(preferences):

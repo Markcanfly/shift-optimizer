@@ -30,8 +30,8 @@ class ShiftModel(cp_model.CpModel):
                     self.variables[(d, s, p)] = self.NewBoolVar(f'Day{d} Shift{s} Person{p}')
         self.constraint_pref_only()
         self.constraint_shift_capacity()
-        #self.constraint_work_mins(5*60, 35*60)
         #self.constraint_long_shift()
+        self.constraint_work_mins(10*60, 35*60)
 
     def constraint_pref_only(self):
         """Make sure that employees only get assigned to a shift
@@ -67,29 +67,34 @@ class ShiftModel(cp_model.CpModel):
         """
         mins_of_shift = dict() # calculate shift hours
 
-        for (d,s),vals in enumerate(self.sdata):
-            mins_of_shift[(d,s)] = vals[2] - vals[1]
-
+        for (d,s),(c, begin, end) in self.sdata.items():
+            mins_of_shift[(d,s)] = end - begin
+        # TODO MAKE THIS CLEANER. This atrocity is ugly, but it works. Figure out how to set upper and lower bounds manually.
         for p in self.people:
             work_mins = 0
             for d in self.days:
                 for s in self.shifts:
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
-            self.Add(min < work_mins and work_mins < max)
+            self.Add(min < work_mins)
+        for p in self.people:
+            work_mins = 0
+            for d in self.days:
+                for s in self.shifts:
+                    work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
+            self.Add(work_mins < max)
 
-    # def constraint_long_shift(self):
-    #     """Make sure that everyone works at least one long shift.
-    #     """
-    #     long_shifts = set() # find long shift ids
-    #     for shift in self.shifts:
-    #         if shift[4] - shift[3] > 5: # Number of hours
-    #             long_shifts.add(shift[1])
-    #     for person_id in range(self.n_people):
-    #         self.Add(
-    #             sum(
-    #                 [sum([self.variables[(d,s,person_id)] for s in long_shifts]) for d in range(7)]
-    #             ) > 0
-    #         ) # Any one of these has to be true -> sum > 0
+    def constraint_long_shift(self):
+        """Make sure that everyone works at least one long shift.
+        """
+        long_shifts = set() # find long shifts
+        for (d, s), (c, begin, end) in self.sdata.items():
+            if end - begin > 5*60: # Number of minutes
+                long_shifts.add((d, s))
+        
+        for p in self.people:
+            self.Add(
+                sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) > 0
+            ) # Any one of these has to be true -> sum > 0
 
     # def constraint_no_conflict(self):
     #     """Make sure that no one has two shifts on a day that overlap.
@@ -166,6 +171,14 @@ class ShiftSolutionPrinter(cp_model.CpSolverSolutionCallback):
         self._sols = set(sols)
         self._sol_count = 0
 
+    def count_work_hours(self, person_id):
+        work_hours = 0
+        for d in self._m.days:
+            for s in self._m.shifts:
+                s_hours = (self._m.sdata[(d,s)][2] - self._m.sdata[(d,s)][1]) / 60
+                work_hours += self.Value(self._m.variables[d,s,person_id]) * s_hours
+        return work_hours
+
     def on_solution_callback(self):
         print(f'Solution #{self._sol_count}')
         for d in self._m.days:
@@ -175,6 +188,9 @@ class ShiftSolutionPrinter(cp_model.CpSolverSolutionCallback):
                 for p in self._m.people:
                     if self.Value(self._m.variables[(d,s,p)]):
                         print(f'        Person {p}')
+        print()
+        for p in self._m.people:
+            print(f"Person {p} works {self.count_work_hours(p)} hours")
         print()
         self._sol_count += 1
 

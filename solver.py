@@ -3,6 +3,7 @@ from data import flat_shifts
 from generate_preferences import get_requests
 from models import Shift # For IntelliSense
 from itertools import combinations
+import pickle
 
 class ShiftModel(cp_model.CpModel):
     """Shift solver
@@ -229,7 +230,8 @@ class ShiftSolutionPrinter(cp_model.CpSolverSolutionCallback):
         return self._sol_count
 
 if __name__ == "__main__":
-    requests = get_requests(14, 8, 4, 3)
+    with open('pref.pickle', 'rb') as preffile:
+        requests = pickle.load(preffile)
     model = ShiftModel(flat_shifts, requests)
     solver = cp_model.CpSolver()
     solver.Solve(model)

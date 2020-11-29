@@ -19,29 +19,28 @@ class ShiftModel(cp_model.CpModel):
         """
         super().__init__()
         self.people = ShiftModel.get_people(preferences)
-        self.shifts = ShiftModel.get_shifts(shiftlist)
-        self.days = ShiftModel.get_days(shiftlist)
+        self.daily_shifts = ShiftModel.get_daily_shifts(shiftlist)
         self.sdata = ShiftModel.get_shiftdata(shiftlist)
         self.preferences = preferences
         self.variables = {}
-        for d in self.days:
-            for s in self.shifts:
+        for d, shifts in self.daily_shifts.items():
+            for s in shifts:
                 for p in self.people:
                     self.variables[(d, s, p)] = self.NewBoolVar(f'Day{d} Shift{s} Person{p}')
         
         self.constraint_pref_only()
         self.constraint_shift_capacity()
         self.constraint_long_shift()
-        self.constraint_work_mins(18*60, 22*60)
-        self.constraint_no_conflict()
+        self.constraint_work_mins(17*60, 23*60)
+        #self.constraint_no_conflict()
 
     def constraint_pref_only(self):
         """Make sure that employees only get assigned to a shift
         that they signed up for.
         """
         has_pref = dict() # index
-        for d in self.days:
-            for s in self.shifts:
+        for d, shifts in self.daily_shifts.items():
+            for s in shifts:
                 for p in self.people:
                     has_pref[(d,s,p)] = False # default every pref to False
         for pref in self.preferences: # overwrite to two if the employee signed up with any pref score
@@ -55,8 +54,8 @@ class ShiftModel(cp_model.CpModel):
         """Make sure that there are exactly as many employees assigned
         to a shift as it has capacity.
         """
-        for d in self.days:
-            for s in self.shifts:
+        for d, shifts in self.daily_shifts.items():
+            for s in shifts:
                 self.Add(sum(self.variables[(d, s, p)] for p in self.people) == self.sdata[(d,s)][0])
 
     def constraint_work_mins(self, min, max):
@@ -73,14 +72,14 @@ class ShiftModel(cp_model.CpModel):
         # TODO MAKE THIS CLEANER. This atrocity is ugly, but it works. Figure out how to set upper and lower bounds manually.
         for p in self.people:
             work_mins = 0
-            for d in self.days:
-                for s in self.shifts:
+            for d, shifts in self.daily_shifts.items():
+                for s in shifts:
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
             self.Add(min < work_mins)
         for p in self.people:
             work_mins = 0
-            for d in self.days:
-                for s in self.shifts:
+            for d, shifts in self.daily_shifts.items():
+                for s in shifts:
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
             self.Add(work_mins < max)
 
@@ -106,11 +105,26 @@ class ShiftModel(cp_model.CpModel):
                 conflicting_pairs.add((s1, s2)) # add their ids
 
         # find pairs of incompatible (day,shift) ids
-        for p in self.people:
-            for d in self.days:
-                for s1, s2 in ((0, 1),):
+        for d, shifts in self.daily_shifts.keys():
+            for s1, s2 in ((0, 1),):
                     # Both of them can't be true for the same person
                     self.Add(self.variables[(d,s1,p)] + self.variables[(d,s2,p)] < 2)
+
+    @staticmethod
+    def get_daily_shifts(shiftlist):
+        """Extract a dictionary of shift ids for each day. 
+        Args:
+            shiftlist: list of (day_id, shift_id, capacity, from, to) tuples
+        Returns:
+            daily_shifts['day'] = list(shift1_id, shift2_id...)    
+        """
+        daily_shifts = dict()
+        for sraw in shiftlist:
+            daily_shifts[sraw[0]] = set() # Initialize with empty sets
+        for sraw in shiftlist:
+            daily_shifts[sraw[0]].add(sraw[1])
+
+        return daily_shifts
 
     @staticmethod
     def get_people(preferences):
@@ -174,16 +188,16 @@ class ShiftSolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def count_work_hours(self, person_id):
         work_hours = 0
-        for d in self._m.days:
-            for s in self._m.shifts:
+        for d, shifts in self._m.daily_shifts.items():
+            for s in shifts:
                 s_hours = (self._m.sdata[(d,s)][2] - self._m.sdata[(d,s)][1]) / 60
                 work_hours += self.Value(self._m.variables[d,s,person_id]) * s_hours
         return work_hours
 
     def on_solution_callback(self):
-        for d in self._m.days:
+        for d, shifts in self._m.daily_shifts.items():
             print(f'Day {d}:')
-            for s in self._m.shifts:
+            for s in shifts:
                 print(f'    Shift {s}')
                 for p in self._m.people:
                     if self.Value(self._m.variables[(d,s,p)]):

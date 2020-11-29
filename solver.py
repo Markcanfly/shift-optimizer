@@ -32,6 +32,7 @@ class ShiftModel(cp_model.CpModel):
         self.constraint_pref_only()
         self.constraint_shift_capacity()
         self.constraint_long_shift()
+        self.constraint_long_shift_break()
         self.constraint_work_mins(18*60, 22*60)
         self.constraint_no_conflict()
         self.maximize_welfare()
@@ -98,6 +99,16 @@ class ShiftModel(cp_model.CpModel):
             self.Add(
                 sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) > 0
             ) # Any one of these has to be true -> sum > 0
+
+    def constraint_long_shift_break(self):
+        long_shifts = set() # find long shifts
+        for (d, s), (c, begin, end) in self.sdata.items():
+            if end - begin > 5*60: # Number of minutes
+                long_shifts.add((d, s))
+        
+        for p in self.people:
+            for (d,long_s) in long_shifts:
+                self.Add(sum([(self.variables[d,s,p]) for s in self.daily_shifts[d]]) == 1).OnlyEnforceIf(self.variables[d,long_s,p])
 
     def constraint_no_conflict(self):
         """Make sure that no one has two shifts on a day that overlap.
@@ -230,8 +241,9 @@ class ShiftSolutionPrinter(cp_model.CpSolverSolutionCallback):
         return self._sol_count
 
 if __name__ == "__main__":
-    with open('pref.pickle', 'rb') as preffile:
-        requests = pickle.load(preffile)
+    # with open('pref.pickle', 'rb') as preffile:
+    #     requests = pickle.load(preffile)
+    requests = get_requests(14, 8, 4, 3)
     model = ShiftModel(flat_shifts, requests)
     solver = cp_model.CpSolver()
     solver.Solve(model)
@@ -257,8 +269,12 @@ if __name__ == "__main__":
                     s_hours = (model.sdata[(d,s)][2] - model.sdata[(d,s)][1]) / 60
                     work_hours += solver.Value(model.variables[d,s,p]) * s_hours
             print(f'{p} works {work_hours} hours.')
-
+        # with open('pref.pickle', 'wb') as preffile:
+        #     pickle.dump(requests, preffile)
     except IndexError:
         print('No solution found.')
 # Hint https://developers.google.com/optimization/scheduling/employee_scheduling
 # TODO no other shift on long shif day(s)
+# TODO constraint softening parameters
+#      e.g. option to indicate whether the capacity has to be filled
+# TODO input?

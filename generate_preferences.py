@@ -2,7 +2,7 @@ from random import sample, randint, choice, shuffle
 
 n_people = 70
 days = list(range(7))
-
+# TODO fix generator - doesn't take into account how many shifts are on a specific day
 def get_requests(n_people, n_shifts, days_per_person, shifts_per_person):
     requests = list() # Dictionary of days of applications
     for p in range(n_people):

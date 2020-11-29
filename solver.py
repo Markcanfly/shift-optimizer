@@ -32,7 +32,7 @@ class ShiftModel(cp_model.CpModel):
         self.constraint_pref_only()
         self.constraint_shift_capacity()
         self.constraint_long_shift()
-        self.constraint_work_mins(10*60, 35*60)
+        self.constraint_work_mins(18*60, 22*60)
         self.constraint_no_conflict()
 
     def constraint_pref_only(self):
@@ -57,8 +57,7 @@ class ShiftModel(cp_model.CpModel):
         """
         for d in self.days:
             for s in self.shifts:
-                self.Add(sum(self.variables[(d, s, p)] for p in self.people) >= 1)
-                self.Add(sum(self.variables[(d, s, p)] for p in self.people) <= self.sdata[(d,s)][0])
+                self.Add(sum(self.variables[(d, s, p)] for p in self.people) == self.sdata[(d,s)][0])
 
     def constraint_work_mins(self, min, max):
         """Make sure that everyone works the minimum number of minutes,
@@ -182,7 +181,6 @@ class ShiftSolutionPrinter(cp_model.CpSolverSolutionCallback):
         return work_hours
 
     def on_solution_callback(self):
-        print(f'Solution #{self._sol_count}')
         for d in self._m.days:
             print(f'Day {d}:')
             for s in self._m.shifts:
@@ -194,6 +192,7 @@ class ShiftSolutionPrinter(cp_model.CpSolverSolutionCallback):
         for p in self._m.people:
             print(f"Person {p} works {self.count_work_hours(p)} hours")
         print()
+        print(f'Solution #{self._sol_count}')
         self._sol_count += 1
 
     def solution_count(self):

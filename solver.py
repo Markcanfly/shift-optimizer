@@ -74,6 +74,7 @@ class ShiftModel(cp_model.CpModel):
         mins_of_shift = dict() # calculate shift hours
 
         for (d,s),(c, begin, end) in self.sdata.items():
+            del c # Capacity is not used here
             mins_of_shift[(d,s)] = end - begin
         # TODO MAKE THIS CLEANER. This atrocity is ugly, but it works. Figure out how to set upper and lower bounds manually.
         for p in self.people:
@@ -94,9 +95,10 @@ class ShiftModel(cp_model.CpModel):
         """
         long_shifts = set() # find long shifts
         for (d, s), (c, begin, end) in self.sdata.items():
+            del c # Capacity is not used here
             if end - begin > 5*60: # Number of minutes
                 long_shifts.add((d, s))
-        
+
         for p in self.people:
             self.Add(
                 sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) > 0
@@ -105,6 +107,7 @@ class ShiftModel(cp_model.CpModel):
     def AddLongShiftBreak(self):
         long_shifts = set() # find long shifts
         for (d, s), (c, begin, end) in self.sdata.items():
+            del c # Capacity is not used here
             if end - begin > 5*60: # Number of minutes
                 long_shifts.add((d, s))
         
@@ -117,6 +120,7 @@ class ShiftModel(cp_model.CpModel):
         """
         conflicting_pairs = set() # assuming every day has the same shifts
         for ((d1,s1),(c1, b1, e1)), ((d2,s2),(c2, b2,e2)) in combinations(self.sdata.items(), r=2):
+            del c1, c2 # Capacity is not used here
             if (d1==d2) and (((b2 < b1 < e2) or (b2 < e1 < e2)) or (((b1 < b2 < e1) or (b1 < e2 < e1)))): # Test conflict
                 conflicting_pairs.add((d1,(s1,s2))) # add their ids
 
@@ -219,40 +223,66 @@ def print_sol(solver, model):
     pref = dict() # Index preference scores
     for praw in model.preferences:
         pref[(praw[:3])] = praw[3]
-    
-    try:
-        for d, shifts in model.daily_shifts.items():
-            print(f'Day {d}:')
-            for s in shifts:
-                print(f'    Shift {s}')
-                for p in model.people:
-                    if solver.Value(model.variables[(d,s,p)]):
-                        print(f'        Person {p} with preference {pref[(d,s,p)]}')
-            print()
-        print(f'Preference score: {solver.ObjectiveValue()}')
 
-        for p in model.people:
-            work_hours=0
-            for d, shifts in model.daily_shifts.items():
-                for s in shifts:
-                    s_hours = (model.sdata[(d,s)][2] - model.sdata[(d,s)][1]) / 60
-                    work_hours += solver.Value(model.variables[d,s,p]) * s_hours
-            print(f'{p} works {work_hours} hours.')
-        return True
-    except IndexError:
-        print('No solution found.')
-        return False
+    for d, shifts in model.daily_shifts.items():
+        print(f'Day {d}:')
+        for s in shifts:
+            print(f'    Shift {s}')
+            for p in model.people:
+                if solver.Value(model.variables[(d,s,p)]):
+                    print(f'        Person {p} with preference {pref[(d,s,p)]}')
+        print()
+    print(f'Preference score: {solver.ObjectiveValue()}')
+
+    for p in model.people:
+        work_hours=0
+        for d, shifts in model.daily_shifts.items():
+            for s in shifts:
+                s_hours = (model.sdata[(d,s)][2] - model.sdata[(d,s)][1]) / 60
+                work_hours += solver.Value(model.variables[d,s,p]) * s_hours
+        print(f'{p} works {work_hours} hours.')
+
+def find_solutions(shifts, preferences, hours_goal, hours_goal_deviances, min_workers, cap_leeways):
+    """Find optimal solution with priority ordered variable parameters
+
+    The priority of the variables is as such:
+        minimum_capacity > deviance_from_max_capacity > hours_goal_deviance
+    Args:
+        shifts: list of (day_id, shift_id, capacity, from: minutes, to: minutes) tuples
+        preferences: list of (day_id, shift_id, person_id, pref_score) tuples
+        hours_goal: the number of ideal hours that each person works for
+        hours_goal_deviances: the range of possible ± deviances from the goal
+        min_workers: the range of minimum workers on each shift
+        cap_leeways: the range of maximum deviance from the maximal capacity of each shift
+    """
+    for min_cap in min_workers:
+        for cap_leeway in cap_leeways:
+            for work_hour_leeway in hours_goal_deviances:
+                model = ShiftModel(flat_shifts, requests)
+                model.AddShiftCapacity(min=min_cap, leeway=cap_leeway)
+                model.AddWorkMinutes(min=(hours_goal-work_hour_leeway)*60, max=(hours_goal+work_hour_leeway)*60)
+                solver = cp_model.CpSolver()
+                solver.Solve(model)
+                if solver.StatusName() != 'INFEASIBLE':
+                    print_sol(solver, model)
+                    print(f'Solution found for the following parameters:')
+                    print(f'Hours: {hours_goal}±{work_hour_leeway}')
+                    print(f'Minimum people on a shift: {min_cap}')
+                    print(f'Maximum empty places in a shift: {cap_leeway}')
+                    return
+                else:
+                    print(f'No solution found for {hours_goal}±{work_hour_leeway} {min_cap} {cap_leeway}')
 
 if __name__ == "__main__":
     requests = get_requests(14, 8, 4, 3) # random valid data generator
-    model = ShiftModel(flat_shifts, requests)
-    model.AddShiftCapacity(1, leeway=1)
-    model.AddWorkMinutes(18*60, 22*60)
-    solver = cp_model.CpSolver()
-    solver.Solve(model)
-    print_sol(solver, model)
-
-# TODO constraint softening parameters
+    find_solutions(
+        flat_shifts, 
+        requests, 
+        hours_goal=20, 
+        hours_goal_deviances=range(1,4), 
+        min_workers=(1,0),
+        cap_leeways=range(2)
+    )
 
 # TODO input of preferences from file
 # TODO input of shifts from file

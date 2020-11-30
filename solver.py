@@ -30,7 +30,7 @@ class ShiftModel(cp_model.CpModel):
                     self.variables[(d, s, p)] = self.NewBoolVar(f'Day{d} Shift{s} Person{p}')
         
         self.constraint_pref_only()
-        self.constraint_shift_capacity()
+        self.constraint_shift_capacity(1, leeway=1)
         self.constraint_long_shift()
         self.constraint_long_shift_break()
         self.constraint_work_mins(18*60, 22*60)
@@ -53,13 +53,17 @@ class ShiftModel(cp_model.CpModel):
             if not has_pref[(d,s,p)]:
                 self.Add(self.variables[(d, s, p)] == False)
 
-    def constraint_shift_capacity(self):
+    def constraint_shift_capacity(self, min=1, leeway=0):
         """Make sure that there are exactly as many employees assigned
         to a shift as it has capacity.
+        Args:
+            min: the absolute minimum number of people assigned to each shift
+            leeway: the minimum relative to the capacity
         """
         for d, shifts in self.daily_shifts.items():
             for s in shifts:
-                self.Add(1 <= sum(self.variables[(d, s, p)] for p in self.people))
+                self.Add(min <= sum(self.variables[(d, s, p)] for p in self.people)) # Minimum
+                self.Add((self.sdata[(d,s)][0] - leeway) <= sum(self.variables[(d, s, p)] for p in self.people)) # Add leeway, useful when capacity>1
                 self.Add(sum(self.variables[(d, s, p)] for p in self.people) <= self.sdata[(d,s)][0])
 
     def constraint_work_mins(self, min, max):
@@ -240,7 +244,9 @@ if __name__ == "__main__":
     print_sol(solver, model)
 
 # TODO constraint softening parameters
-#      e.g. option to indicate whether the capacity has to be filled
+
 # TODO input of preferences from file
 # TODO input of shifts from file
+# TODO rename methods to AddX to comply with module
 
+# TODO consider this: maybe it would be beneficial to set that it can just not fill a shift, but that'll cost more 

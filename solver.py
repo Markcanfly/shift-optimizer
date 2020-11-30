@@ -29,15 +29,15 @@ class ShiftModel(cp_model.CpModel):
                 for p in self.people:
                     self.variables[(d, s, p)] = self.NewBoolVar(f'Day{d} Shift{s} Person{p}')
         
-        self.constraint_pref_only()
-        self.constraint_shift_capacity(1, leeway=1)
-        self.constraint_long_shift()
-        self.constraint_long_shift_break()
-        self.constraint_work_mins(18*60, 22*60)
-        self.constraint_no_conflict()
-        self.maximize_welfare()
+        self.AddPrefOnly()
+        self.AddShiftCapacity(1, leeway=1)
+        self.AddLongShift()
+        self.AddLongShiftBreak()
+        self.AddWorkMinutes(18*60, 22*60)
+        self.AddNoConflict()
+        self.MaximizeWelfare()
 
-    def constraint_pref_only(self):
+    def AddPrefOnly(self):
         """Make sure that employees only get assigned to a shift
         that they signed up for.
         """
@@ -53,7 +53,7 @@ class ShiftModel(cp_model.CpModel):
             if not has_pref[(d,s,p)]:
                 self.Add(self.variables[(d, s, p)] == False)
 
-    def constraint_shift_capacity(self, min=1, leeway=0):
+    def AddShiftCapacity(self, min=1, leeway=0):
         """Make sure that there are exactly as many employees assigned
         to a shift as it has capacity.
         Args:
@@ -66,7 +66,7 @@ class ShiftModel(cp_model.CpModel):
                 self.Add((self.sdata[(d,s)][0] - leeway) <= sum(self.variables[(d, s, p)] for p in self.people)) # Add leeway, useful when capacity>1
                 self.Add(sum(self.variables[(d, s, p)] for p in self.people) <= self.sdata[(d,s)][0])
 
-    def constraint_work_mins(self, min, max):
+    def AddWorkMinutes(self, min, max):
         """Make sure that everyone works the minimum number of minutes,
         and no one works too much.
         Args:
@@ -91,7 +91,7 @@ class ShiftModel(cp_model.CpModel):
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
             self.Add(work_mins < max)
 
-    def constraint_long_shift(self):
+    def AddLongShift(self):
         """Make sure that everyone works at least one long shift.
         """
         long_shifts = set() # find long shifts
@@ -104,7 +104,7 @@ class ShiftModel(cp_model.CpModel):
                 sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) > 0
             ) # Any one of these has to be true -> sum > 0
 
-    def constraint_long_shift_break(self):
+    def AddLongShiftBreak(self):
         long_shifts = set() # find long shifts
         for (d, s), (c, begin, end) in self.sdata.items():
             if end - begin > 5*60: # Number of minutes
@@ -114,7 +114,7 @@ class ShiftModel(cp_model.CpModel):
             for (d,long_s) in long_shifts:
                 self.Add(sum([(self.variables[d,s,p]) for s in self.daily_shifts[d]]) == 1).OnlyEnforceIf(self.variables[d,long_s,p])
 
-    def constraint_no_conflict(self):
+    def AddNoConflict(self):
         """Make sure that no one has two shifts on a day that overlap.
         """
         conflicting_pairs = set() # assuming every day has the same shifts
@@ -128,7 +128,7 @@ class ShiftModel(cp_model.CpModel):
                 # Both of them can't be true for the same person
                 self.Add(self.variables[(d,s1,p)] + self.variables[(d,s2,p)] < 2)
 
-    def maximize_welfare(self):
+    def MaximizeWelfare(self):
         pref = dict() # Index preference scores
         for praw in self.preferences:
             pref[(praw[:3])] = praw[3]
@@ -247,6 +247,5 @@ if __name__ == "__main__":
 
 # TODO input of preferences from file
 # TODO input of shifts from file
-# TODO rename methods to AddX to comply with module
 
 # TODO consider this: maybe it would be beneficial to set that it can just not fill a shift, but that'll cost more 

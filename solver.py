@@ -30,10 +30,8 @@ class ShiftModel(cp_model.CpModel):
                     self.variables[(d, s, p)] = self.NewBoolVar(f'Day{d} Shift{s} Person{p}')
         
         self.AddPrefOnly()
-        self.AddShiftCapacity(1, leeway=1)
         self.AddLongShift()
         self.AddLongShiftBreak()
-        self.AddWorkMinutes(18*60, 22*60)
         self.AddNoConflict()
         self.MaximizeWelfare()
 
@@ -211,6 +209,13 @@ class ShiftModel(cp_model.CpModel):
         return shiftdata
 
 def print_sol(solver, model):
+    """Prints a solution.
+    Args:
+        solver: CpSolver
+        model: CpModel
+    Returns:
+        Whether a solution was found.
+    """
     pref = dict() # Index preference scores
     for praw in model.preferences:
         pref[(praw[:3])] = praw[3]
@@ -224,7 +229,7 @@ def print_sol(solver, model):
                     if solver.Value(model.variables[(d,s,p)]):
                         print(f'        Person {p} with preference {pref[(d,s,p)]}')
             print()
-        print(solver.ObjectiveValue())
+        print(f'Preference score: {solver.ObjectiveValue()}')
 
         for p in model.people:
             work_hours=0
@@ -233,12 +238,16 @@ def print_sol(solver, model):
                     s_hours = (model.sdata[(d,s)][2] - model.sdata[(d,s)][1]) / 60
                     work_hours += solver.Value(model.variables[d,s,p]) * s_hours
             print(f'{p} works {work_hours} hours.')
+        return True
     except IndexError:
         print('No solution found.')
+        return False
 
 if __name__ == "__main__":
     requests = get_requests(14, 8, 4, 3) # random valid data generator
     model = ShiftModel(flat_shifts, requests)
+    model.AddShiftCapacity(1, leeway=1)
+    model.AddWorkMinutes(18*60, 22*60)
     solver = cp_model.CpSolver()
     solver.Solve(model)
     print_sol(solver, model)

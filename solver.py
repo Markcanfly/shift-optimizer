@@ -206,47 +206,7 @@ class ShiftModel(cp_model.CpModel):
             shiftdata[(sraw[0], sraw[1])] = tuple(sraw[2:])
         return shiftdata
 
-class ShiftSolutionPrinter(cp_model.CpSolverSolutionCallback):
-    """Print intermediate solutions."""
-    def __init__(self, model, sols):
-        cp_model.CpSolverSolutionCallback.__init__(self)
-        self._m = model
-        self._sols = set(sols)
-        self._sol_count = 0
-
-    def count_work_hours(self, person_id):
-        work_hours = 0
-        for d, shifts in self._m.daily_shifts.items():
-            for s in shifts:
-                s_hours = (self._m.sdata[(d,s)][2] - self._m.sdata[(d,s)][1]) / 60
-                work_hours += self.Value(self._m.variables[d,s,person_id]) * s_hours
-        return work_hours
-
-    def on_solution_callback(self):
-        for d, shifts in self._m.daily_shifts.items():
-            print(f'Day {d}:')
-            for s in shifts:
-                print(f'    Shift {s}')
-                for p in self._m.people:
-                    if self.Value(self._m.variables[(d,s,p)]):
-                        print(f'        Person {p}')
-        print()
-        for p in self._m.people:
-            print(f"Person {p} works {self.count_work_hours(p)} hours")
-        print()
-        print(f'Solution #{self._sol_count}')
-        self._sol_count += 1
-
-    def solution_count(self):
-        return self._sol_count
-
-if __name__ == "__main__":
-    # with open('pref.pickle', 'rb') as preffile:
-    #     requests = pickle.load(preffile)
-    requests = get_requests(14, 8, 4, 3)
-    model = ShiftModel(flat_shifts, requests)
-    solver = cp_model.CpSolver()
-    solver.Solve(model)
+def print_sol(solver, model):
     pref = dict() # Index preference scores
     for praw in model.preferences:
         pref[(praw[:3])] = praw[3]
@@ -269,12 +229,18 @@ if __name__ == "__main__":
                     s_hours = (model.sdata[(d,s)][2] - model.sdata[(d,s)][1]) / 60
                     work_hours += solver.Value(model.variables[d,s,p]) * s_hours
             print(f'{p} works {work_hours} hours.')
-        # with open('pref.pickle', 'wb') as preffile:
-        #     pickle.dump(requests, preffile)
     except IndexError:
         print('No solution found.')
-# Hint https://developers.google.com/optimization/scheduling/employee_scheduling
-# TODO no other shift on long shif day(s)
+
+if __name__ == "__main__":
+    requests = get_requests(14, 8, 4, 3) # random valid data generator
+    model = ShiftModel(flat_shifts, requests)
+    solver = cp_model.CpSolver()
+    solver.Solve(model)
+    print_sol(solver, model)
+
 # TODO constraint softening parameters
 #      e.g. option to indicate whether the capacity has to be filled
-# TODO input?
+# TODO input of preferences from file
+# TODO input of shifts from file
+

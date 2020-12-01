@@ -48,18 +48,16 @@ shifts = [
     Shift(0, 5, beginning=Time(8, 45), end=Time(16,00)),
     Shift(1, 5, beginning=Time(11, 00), end=Time(15,00), capacity=2),
     Shift(3, 5, beginning=Time(12, 00), end=Time(17,00)), 
-    Shift(4, 5, beginning=Time(11, 30), end=Time(14,00), capacity=2),
-    Shift(5, 5, beginning=Time(17, 00), end=Time(22,00)), 
-    Shift(6, 5, beginning=Time(18, 00), end=Time(21,30)), 
-    Shift(7, 5, beginning=Time(17, 00), end=Time(23,45)),
+    Shift(4, 5, beginning=Time(17, 00), end=Time(22,00)), 
+    Shift(5, 5, beginning=Time(18, 00), end=Time(21,30)), 
+    Shift(6, 5, beginning=Time(17, 00), end=Time(23,45)),
 
     Shift(0, 6, beginning=Time(8, 45), end=Time(16,00)),
     Shift(1, 6, beginning=Time(11, 00), end=Time(15,00), capacity=2),
     Shift(3, 6, beginning=Time(12, 00), end=Time(17,00)), 
-    Shift(4, 6, beginning=Time(11, 30), end=Time(14,00), capacity=2),
-    Shift(5, 6, beginning=Time(17, 00), end=Time(22,00)), 
-    Shift(6, 6, beginning=Time(18, 00), end=Time(21,30)), 
-    Shift(7, 6, beginning=Time(17, 00), end=Time(23,45))
+    Shift(4, 6, beginning=Time(17, 00), end=Time(22,00)), 
+    Shift(5, 6, beginning=Time(18, 00), end=Time(21,30)), 
+    Shift(6, 6, beginning=Time(17, 00), end=Time(23,45))
 ]
 
 flat_shifts = []

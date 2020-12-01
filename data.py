@@ -1,5 +1,5 @@
 """Static data definition for the flat_shifts."""
-
+import json
 from models import Shift, Time
 
 day_names = ['Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat', 'Vasárnap']
@@ -68,3 +68,14 @@ for s in shifts:
     begin = s.beginning.time # in minutes
     end = s.end.time
     flat_shifts.append((s.day_index, s.id_, s.capacity, begin, end))
+if __name__ == "__main__":
+    # output to file
+    shift_dict = dict()
+    for s in flat_shifts: # Index
+        shift_dict[day_names[s[0]]] = list()
+
+    for s in flat_shifts:
+        shift_dict[day_names[s[0]]].append(s)
+    
+    with open('shifts.json', 'w', encoding='utf8') as jsonfile:
+        json.dump(shift_dict, jsonfile, indent=4, ensure_ascii=False)

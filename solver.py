@@ -1,6 +1,6 @@
 from ortools.sat.python import cp_model
 from data import flat_shifts
-from generate_preferences import get_requests
+from generate_preferences import generate_requests
 from models import Shift # For IntelliSense
 from itertools import combinations
 import pickle
@@ -274,7 +274,7 @@ def find_solutions(shifts, preferences, hours_goal, hours_goal_deviances, min_wo
                     print(f'No solution found for {hours_goal}±{work_hour_leeway} {min_cap} {cap_leeway}')
 
 if __name__ == "__main__":
-    requests = get_requests(14, 8, 4, 3) # random valid data generator
+    requests = generate_requests(14, 4, 3) # random valid data generator
     find_solutions(
         flat_shifts, 
         requests, 

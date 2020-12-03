@@ -101,8 +101,8 @@ class ShiftModel(cp_model.CpModel):
 
         for p in self.people:
             self.Add(
-                sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) > 0
-            ) # Any one of these has to be true -> sum > 0
+                sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) == 1
+            ) # A worker has to have exactly one long shift a week
 
     def AddLongShiftBreak(self):
         long_shifts = set() # find long shifts

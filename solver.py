@@ -1,5 +1,5 @@
 from ortools.sat.python import cp_model
-from data import flat_shifts
+from data import flat_shifts, from_csv
 from generate_preferences import generate_requests
 from models import Shift # For IntelliSense
 from itertools import combinations
@@ -61,7 +61,7 @@ class ShiftModel(cp_model.CpModel):
         for d, shifts in self.daily_shifts.items():
             for s in shifts:
                 self.Add(min <= sum(self.variables[(d, s, p)] for p in self.people)) # Minimum
-                self.Add((self.sdata[(d,s)][0] - leeway) <= sum(self.variables[(d, s, p)] for p in self.people)) # Add leeway, useful when capacity>1
+                # self.Add((self.sdata[(d,s)][0] - leeway) <= sum(self.variables[(d, s, p)] for p in self.people)) # Add leeway, useful when capacity>1
                 self.Add(sum(self.variables[(d, s, p)] for p in self.people) <= self.sdata[(d,s)][0])
 
     def AddWorkMinutes(self, min, max):
@@ -242,7 +242,7 @@ def print_sol(solver, model):
                 work_hours += solver.Value(model.variables[d,s,p]) * s_hours
         print(f'{p} works {work_hours} hours.')
 
-def find_solutions(shifts, preferences, hours_goal, hours_goal_deviances, min_workers, cap_leeways):
+def find_solutions(shifts, preferences, hours_goal, hours_goal_deviances, min_workers):
     """Find optimal solution with priority ordered variable parameters
 
     The priority of the variables is as such:
@@ -256,35 +256,34 @@ def find_solutions(shifts, preferences, hours_goal, hours_goal_deviances, min_wo
         cap_leeways: the range of maximum deviance from the maximal capacity of each shift
     """
     for min_cap in min_workers:
-        for cap_leeway in cap_leeways:
-            for work_hour_leeway in hours_goal_deviances:
-                model = ShiftModel(flat_shifts, requests)
-                model.AddShiftCapacity(min=min_cap, leeway=cap_leeway)
-                model.AddWorkMinutes(min=(hours_goal-work_hour_leeway)*60, max=(hours_goal+work_hour_leeway)*60)
-                solver = cp_model.CpSolver()
-                solver.Solve(model)
-                if solver.StatusName() != 'INFEASIBLE':
-                    print_sol(solver, model)
-                    print(f'Solution found for the following parameters:')
-                    print(f'Hours: {hours_goal}±{work_hour_leeway}')
-                    print(f'Minimum people on a shift: {min_cap}')
-                    print(f'Maximum empty places in a shift: {cap_leeway}')
-                    return
-                else:
-                    print(f'No solution found for {hours_goal}±{work_hour_leeway} {min_cap} {cap_leeway}')
+        for work_hour_leeway in hours_goal_deviances:
+            model = ShiftModel(flat_shifts, requests)
+            model.AddShiftCapacity(min=min_cap)
+            model.AddWorkMinutes(min=(hours_goal-work_hour_leeway)*60, max=(hours_goal+work_hour_leeway)*60)
+            solver = cp_model.CpSolver()
+            solver.Solve(model)
+            if solver.StatusName() != 'INFEASIBLE':
+                print_sol(solver, model)
+                print(f'Solution found for the following parameters:')
+                print(f'Hours: {hours_goal}±{work_hour_leeway}')
+                print(f'Minimum people on a shift: {min_cap}')
+                return
+            else:
+                print(f'No solution found for {hours_goal}±{work_hour_leeway} {min_cap}')
 
 if __name__ == "__main__":
-    requests = generate_requests(14, 4, 3) # random valid data generator
+    requests = from_csv()
     find_solutions(
         flat_shifts, 
         requests, 
         hours_goal=20, 
         hours_goal_deviances=range(1,4), 
-        min_workers=(1,0),
-        cap_leeways=range(2)
+        min_workers=(1,0)
     )
 
-# TODO input of preferences from file
 # TODO input of shifts from file
 
-# TODO consider this: maybe it would be beneficial to set that it can just not fill a shift, but that'll cost more 
+# TODO add employee reports
+    # View the shifts you've been assigned to
+# TODO add employer reports
+    # Extensive stats

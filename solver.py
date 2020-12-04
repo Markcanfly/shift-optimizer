@@ -5,6 +5,11 @@ from models import Shift # For IntelliSense
 from itertools import combinations
 import pickle
 
+def get_printable_time(minutes):
+    hours = minutes // 60
+    minutes = minutes % 60
+    return str(hours)+':'+f'{minutes:02}'
+
 class ShiftModel(cp_model.CpModel):
     """Shift solver
 
@@ -241,8 +246,8 @@ class ShiftSolver(cp_model.CpSolver):
                 else:
                     print(f'No solution found for {hours_goal}±{work_hour_leeway} {min_cap}')
     
-    def get_overview(self, model):
-        pass # TODO
+    def get_overview(self):
+        return self.get_shift_workers() + self.get_employees_hours()
 
     def get_shift_workers(self, with_preferences=False):
         """Human-readable overview of the shifts
@@ -260,7 +265,8 @@ class ShiftSolver(cp_model.CpSolver):
         for d, shifts in self.model.daily_shifts.items():
             txt += f'Day {d}:\n'
             for s in shifts:
-                txt += f'    Shift {s}\n'
+                shift_dur_str = f'{get_printable_time(self.model.sdata[(d,s)][1])}-{get_printable_time(self.model.sdata[(d,s)][2])}'
+                txt += f'    Shift {s} {shift_dur_str}\n'
                 for p in self.model.people:
                     if self.Value(self.model.variables[(d,s,p)]):
                         txt += f'        {p}'
@@ -272,7 +278,7 @@ class ShiftSolver(cp_model.CpSolver):
             txt += f'Preference score: {self.ObjectiveValue()}\n'
         return txt
 
-    def get_employee_hours(self):
+    def get_employees_hours(self):
         """Human-readable hours for each employee
         Returns:
             Multiline string
@@ -287,6 +293,15 @@ class ShiftSolver(cp_model.CpSolver):
             txt += f'{p} works {work_hours} hours.\n'
         return txt
 
+    def get_employee_shifts(self, employee_id):
+        """Human-readable shifts for an given employee
+        Args:
+            employee_id: the id for the employee to look up hours the shifts for
+        Returns:
+            Multiline string
+        """
+        pass # TODO fix stub
+
 if __name__ == "__main__":
     requests = from_csv()
     parameters = {
@@ -297,7 +312,7 @@ if __name__ == "__main__":
     solver = ShiftSolver(flat_shifts, requests)
     solver.Solve(parameters)
     print(solver.get_shift_workers())
-    print(solver.get_employee_hours())
+    print(solver.get_employees_hours())
 
 # TODO input of shifts from file
 
@@ -305,4 +320,3 @@ if __name__ == "__main__":
     # View the shifts you've been assigned to
 # TODO add employer reports
     # Extensive stats
-    # Print shift hours

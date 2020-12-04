@@ -300,7 +300,14 @@ class ShiftSolver(cp_model.CpSolver):
         Returns:
             Multiline string
         """
-        pass # TODO fix stub
+        txt = str()
+        for d, shifts in self.model.daily_shifts.items():
+            txt += f'Day {d}:\n'
+            for s in shifts:
+                if self.Value(self.model.variables[(d,s,employee_id)]):
+                    shift_dur_str = f'{get_printable_time(self.model.sdata[(d,s)][1])}-{get_printable_time(self.model.sdata[(d,s)][2])}'
+                    txt += f'    Shift {s} {shift_dur_str}\n'
+        return txt
 
 if __name__ == "__main__":
     requests = from_csv()
@@ -311,12 +318,11 @@ if __name__ == "__main__":
     }
     solver = ShiftSolver(flat_shifts, requests)
     solver.Solve(parameters)
-    print(solver.get_shift_workers())
-    print(solver.get_employees_hours())
+    print(solver.get_overview())
 
 # TODO input of shifts from file
 
-# TODO add employee reports
-    # View the shifts you've been assigned to
-# TODO add employer reports
+# TODO add employer reports to file
     # Extensive stats
+
+# TODO add leeway instead of minimum people per shift

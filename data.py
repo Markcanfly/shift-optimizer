@@ -1,6 +1,7 @@
 """Static data definition for the flat_shifts."""
 import json
 from models import Shift, Time
+import csv
 
 day_names = ['Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat', 'Vasárnap']
 
@@ -62,6 +63,29 @@ shifts = [
 
 flat_shifts = []
 
+def from_csv(filename="data.csv") -> list:
+    """Read the preference data from a csv, 
+    and return it in a solver-compatible format. 
+    
+    Returns:
+        list of (day_id, shift_id, person_id, pref_score) tuples
+    """
+    firstrow = True
+    preferences = []
+    with open(filename, "r") as csvfile:
+        csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
+        for row in csvreader:
+            if firstrow:
+                firstrow = False
+                continue
+            person_id = row[0]
+            for day_id, daily_shifts_str in enumerate(row[1:-1]):
+                if daily_shifts_str != "": # Pref list for day isn't empty
+                    daily_shifts = list(map(int,daily_shifts_str.split(',')))
+                    for pref_score, shift_id in enumerate(daily_shifts):
+                        preferences.append((day_id, shift_id, person_id, pref_score))
+    return preferences
+
 for s in shifts:
     begin = s.beginning.time # in minutes
     end = s.end.time
@@ -77,3 +101,5 @@ if __name__ == "__main__":
     
     with open('shifts.json', 'w', encoding='utf8') as jsonfile:
         json.dump(shift_dict, jsonfile, indent=4, ensure_ascii=False)
+
+    from_csv()

@@ -213,58 +213,79 @@ class ShiftModel(cp_model.CpModel):
         return shiftdata
 
 class ShiftSolver(cp_model.CpSolver):
-    def __init__(self):
+    def __init__(self, shifts, preferences):
+        """Args:
+            shifts: list of (day_id, shift_id, capacity, from, to) tuples where
+            preferences: list of (day_id, shift_id, person_id, pref_score) tuples
+        """
         super().__init__()
+        self.shifts = shifts
+        self.preferences = preferences
+        self.model = None
     
-    def Solve(self, model, params):
+    def Solve(self, params):
         hours_goal = params['hours_goal']
         min_workers = params['min_workers']
         hours_goal_deviances = params['hours_goal_deviances']
         for min_cap in min_workers:
             for work_hour_leeway in hours_goal_deviances:
-                model = ShiftModel(flat_shifts, requests)
-                model.AddShiftCapacity(min=min_cap)
-                model.AddWorkMinutes(min=(hours_goal-work_hour_leeway)*60, max=(hours_goal+work_hour_leeway)*60)
-                super().Solve(model)
+                self.model = ShiftModel(self.shifts, self.preferences)
+                self.model.AddShiftCapacity(min=min_cap)
+                self.model.AddWorkMinutes(min=(hours_goal-work_hour_leeway)*60, max=(hours_goal+work_hour_leeway)*60)
+                super().Solve(self.model)
                 if super().StatusName() != 'INFEASIBLE':
-                    print_sol(self, model)
                     print(f'Solution found for the following parameters:')
                     print(f'Hours: {hours_goal}±{work_hour_leeway}')
                     print(f'Minimum people on a shift: {min_cap}')
                     return
                 else:
                     print(f'No solution found for {hours_goal}±{work_hour_leeway} {min_cap}')
+    
+    def get_overview(self, model):
+        pass # TODO
 
+    def get_shift_workers(self, with_preferences=False):
+        """Human-readable overview of the shifts
+        Args:
+            with_preferences: whether to add the preference values as well.
+        Returns:
+            Multiline string
+        """
+        txt = str()
+        if with_preferences:
+            pref = dict() # Index preference scores
+            for praw in self.model.preferences:
+                pref[(praw[:3])] = praw[3]
 
-def print_sol(solver, model):
-    """Prints a solution.
-    Args:
-        solver: CpSolver
-        model: CpModel
-    Returns:
-        Whether a solution was found.
-    """
-    pref = dict() # Index preference scores
-    for praw in model.preferences:
-        pref[(praw[:3])] = praw[3]
-
-    for d, shifts in model.daily_shifts.items():
-        print(f'Day {d}:')
-        for s in shifts:
-            print(f'    Shift {s}')
-            for p in model.people:
-                if solver.Value(model.variables[(d,s,p)]):
-                    print(f'        Person {p} with preference {pref[(d,s,p)]}')
-        print()
-    print(f'Preference score: {solver.ObjectiveValue()}')
-
-    for p in model.people:
-        work_hours=0
-        for d, shifts in model.daily_shifts.items():
+        for d, shifts in self.model.daily_shifts.items():
+            txt += f'Day {d}:\n'
             for s in shifts:
-                s_hours = (model.sdata[(d,s)][2] - model.sdata[(d,s)][1]) / 60
-                work_hours += solver.Value(model.variables[d,s,p]) * s_hours
-        print(f'{p} works {work_hours} hours.')
+                txt += f'    Shift {s}\n'
+                for p in self.model.people:
+                    if self.Value(self.model.variables[(d,s,p)]):
+                        txt += f'        {p}'
+                        if with_preferences:
+                            txt += f'preference {pref[(d,s,p)]}'
+                        txt += '\n'
+            txt += '\n'
+        if with_preferences:
+            txt += f'Preference score: {self.ObjectiveValue()}\n'
+        return txt
+
+    def get_employee_hours(self):
+        """Human-readable hours for each employee
+        Returns:
+            Multiline string
+        """
+        txt = str()
+        for p in self.model.people:
+            work_hours=0
+            for d, shifts in self.model.daily_shifts.items():
+                for s in shifts:
+                    s_hours = (self.model.sdata[(d,s)][2] - self.model.sdata[(d,s)][1]) / 60
+                    work_hours += self.Value(self.model.variables[d,s,p]) * s_hours
+            txt += f'{p} works {work_hours} hours.\n'
+        return txt
 
 if __name__ == "__main__":
     requests = from_csv()
@@ -273,9 +294,10 @@ if __name__ == "__main__":
         'min_workers': (1, 0),
         'hours_goal_deviances': range(0,4)
     }
-    model = ShiftModel(flat_shifts, requests)
-    solver = ShiftSolver()
-    solver.Solve(model, parameters)
+    solver = ShiftSolver(flat_shifts, requests)
+    solver.Solve(parameters)
+    print(solver.get_shift_workers())
+    print(solver.get_employee_hours())
 
 # TODO input of shifts from file
 
@@ -283,3 +305,4 @@ if __name__ == "__main__":
     # View the shifts you've been assigned to
 # TODO add employer reports
     # Extensive stats
+    # Print shift hours

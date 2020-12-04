@@ -212,6 +212,30 @@ class ShiftModel(cp_model.CpModel):
             shiftdata[(sraw[0], sraw[1])] = tuple(sraw[2:])
         return shiftdata
 
+class ShiftSolver(cp_model.CpSolver):
+    def __init__(self):
+        super().__init__()
+    
+    def Solve(self, model, params):
+        hours_goal = params['hours_goal']
+        min_workers = params['min_workers']
+        hours_goal_deviances = params['hours_goal_deviances']
+        for min_cap in min_workers:
+            for work_hour_leeway in hours_goal_deviances:
+                model = ShiftModel(flat_shifts, requests)
+                model.AddShiftCapacity(min=min_cap)
+                model.AddWorkMinutes(min=(hours_goal-work_hour_leeway)*60, max=(hours_goal+work_hour_leeway)*60)
+                super().Solve(model)
+                if super().StatusName() != 'INFEASIBLE':
+                    print_sol(self, model)
+                    print(f'Solution found for the following parameters:')
+                    print(f'Hours: {hours_goal}±{work_hour_leeway}')
+                    print(f'Minimum people on a shift: {min_cap}')
+                    return
+                else:
+                    print(f'No solution found for {hours_goal}±{work_hour_leeway} {min_cap}')
+
+
 def print_sol(solver, model):
     """Prints a solution.
     Args:
@@ -242,44 +266,16 @@ def print_sol(solver, model):
                 work_hours += solver.Value(model.variables[d,s,p]) * s_hours
         print(f'{p} works {work_hours} hours.')
 
-def find_solutions(shifts, preferences, hours_goal, hours_goal_deviances, min_workers):
-    """Find optimal solution with priority ordered variable parameters
-
-    The priority of the variables is as such:
-        minimum_capacity > deviance_from_max_capacity > hours_goal_deviance
-    Args:
-        shifts: list of (day_id, shift_id, capacity, from: minutes, to: minutes) tuples
-        preferences: list of (day_id, shift_id, person_id, pref_score) tuples
-        hours_goal: the number of ideal hours that each person works for
-        hours_goal_deviances: the range of possible ± deviances from the goal
-        min_workers: the range of minimum workers on each shift
-        cap_leeways: the range of maximum deviance from the maximal capacity of each shift
-    """
-    for min_cap in min_workers:
-        for work_hour_leeway in hours_goal_deviances:
-            model = ShiftModel(flat_shifts, requests)
-            model.AddShiftCapacity(min=min_cap)
-            model.AddWorkMinutes(min=(hours_goal-work_hour_leeway)*60, max=(hours_goal+work_hour_leeway)*60)
-            solver = cp_model.CpSolver()
-            solver.Solve(model)
-            if solver.StatusName() != 'INFEASIBLE':
-                print_sol(solver, model)
-                print(f'Solution found for the following parameters:')
-                print(f'Hours: {hours_goal}±{work_hour_leeway}')
-                print(f'Minimum people on a shift: {min_cap}')
-                return
-            else:
-                print(f'No solution found for {hours_goal}±{work_hour_leeway} {min_cap}')
-
 if __name__ == "__main__":
     requests = from_csv()
-    find_solutions(
-        flat_shifts, 
-        requests, 
-        hours_goal=20, 
-        hours_goal_deviances=range(1,4), 
-        min_workers=(1,0)
-    )
+    parameters = {
+        'hours_goal': 20,
+        'min_workers': (1, 0),
+        'hours_goal_deviances': range(0,4)
+    }
+    model = ShiftModel(flat_shifts, requests)
+    solver = ShiftSolver()
+    solver.Solve(model, parameters)
 
 # TODO input of shifts from file
 

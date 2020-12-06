@@ -38,7 +38,6 @@ class ShiftModel(cp_model.CpModel):
         self.AddLongShift()
         self.AddLongShiftBreak()
         self.AddNoConflict()
-        self.MaximizeWelfare()
 
     def AddPrefOnly(self):
         """Make sure that employees only get assigned to a shift
@@ -135,7 +134,15 @@ class ShiftModel(cp_model.CpModel):
                 # Both of them can't be true for the same person
                 self.Add(self.variables[(d,s1,p)] + self.variables[(d,s2,p)] < 2)
 
-    def MaximizeWelfare(self):
+    def MaximizeWelfare(self, fun):
+        """Maximize the welfare of the employees.
+        This target will minimize the dissatisfaction of the employees
+        with their assigned shift, given a function, which determines factors
+        such as how important it is not to have outliers.
+
+        Args:
+            fun: function to plug prefscore into before summing.
+        """
         pref = dict() # Index preference scores
         for praw in self.preferences:
             pref[(praw[:3])] = praw[3]
@@ -145,7 +152,7 @@ class ShiftModel(cp_model.CpModel):
                 pref[works_id] = 0
 
         self.Minimize(
-            sum([works*pref[works_id] for works_id, works in self.variables.items()])
+            sum([works*fun(pref[works_id]) for works_id, works in self.variables.items()])
         )
         
 
@@ -232,11 +239,13 @@ class ShiftSolver(cp_model.CpSolver):
         hours_goal = params['hours_goal']
         min_workers = params['min_workers']
         hours_goal_deviances = params['hours_goal_deviances']
+        pref_function = params['pref_function']
         for min_cap in min_workers:
             for work_hour_leeway in hours_goal_deviances:
                 self.model = ShiftModel(self.shifts, self.preferences)
                 self.model.AddShiftCapacity(min=min_cap)
                 self.model.AddWorkMinutes(min=(hours_goal-work_hour_leeway)*60, max=(hours_goal+work_hour_leeway)*60)
+                self.model.MaximizeWelfare(pref_function)
                 super().Solve(self.model)
                 if super().StatusName() != 'INFEASIBLE':
                     print(f'Solution found for the following parameters:')
@@ -314,7 +323,8 @@ if __name__ == "__main__":
     parameters = {
         'hours_goal': 20,
         'min_workers': (1, 0),
-        'hours_goal_deviances': range(0,4)
+        'hours_goal_deviances': range(0,4),
+        'pref_function': lambda x: x
     }
     solver = ShiftSolver(flat_shifts, requests)
     solver.Solve(parameters)

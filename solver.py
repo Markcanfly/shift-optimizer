@@ -323,7 +323,7 @@ if __name__ == "__main__":
     parameters = {
         'hours_goal': 20,
         'min_workers': (1, 0),
-        'hours_goal_deviances': range(0,4),
+        'hours_goal_deviances': (1,2,3),
         'pref_function': lambda x: x
     }
     solver = ShiftSolver(flat_shifts, requests)
@@ -335,4 +335,6 @@ if __name__ == "__main__":
 # TODO add employer reports to file
     # Extensive stats
 
-# TODO add leeway instead of minimum people per shift
+# TODO add leeway instead of people per shift
+# right now it doesn't really have an incentive to fill shifts
+# with capacity > 1, only if it's convenient. Change that.

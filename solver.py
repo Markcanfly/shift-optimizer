@@ -1,9 +1,6 @@
 from ortools.sat.python import cp_model
-from data import flat_shifts, from_csv
-from generate_preferences import generate_requests
-from models import Shift # For IntelliSense
+from data import preferences_from_csv, shifts_from_json
 from itertools import combinations
-import pickle
 
 def get_printable_time(minutes):
     hours = minutes // 60
@@ -319,14 +316,15 @@ class ShiftSolver(cp_model.CpSolver):
         return txt
 
 if __name__ == "__main__":
-    requests = from_csv()
+    requests = preferences_from_csv()
+    shifts = shifts_from_json()
     parameters = {
         'hours_goal': 20,
         'min_workers': (1, 0),
         'hours_goal_deviances': (1,2,3),
         'pref_function': lambda x: x
     }
-    solver = ShiftSolver(flat_shifts, requests)
+    solver = ShiftSolver(shifts, requests)
     solver.Solve(parameters)
     print(solver.get_overview())
 

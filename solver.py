@@ -24,7 +24,8 @@ class ShiftModel(cp_model.CpModel):
         self.people = ShiftModel.get_people(preferences)
         self.daily_shifts = ShiftModel.get_daily_shifts(shiftlist)
         self.sdata = ShiftModel.get_shiftdata(shiftlist)
-        self.preferences = preferences
+        self.pdata = ShiftModel.get_prefdata(preferences, shiftlist)
+
         self.variables = {}
         for d, shifts in self.daily_shifts.items():
             for s in shifts:
@@ -32,7 +33,6 @@ class ShiftModel(cp_model.CpModel):
                     self.variables[(d, s, p)] = self.NewBoolVar(f'Day{d} Shift{s} Person{p}')
         
         self.AddPrefOnly()
-        self.AddLongShift()
         self.AddLongShiftBreak()
         self.AddNoConflict()
 
@@ -40,16 +40,8 @@ class ShiftModel(cp_model.CpModel):
         """Make sure that employees only get assigned to a shift
         that they signed up for.
         """
-        has_pref = dict() # index
-        for d, shifts in self.daily_shifts.items():
-            for s in shifts:
-                for p in self.people:
-                    has_pref[(d,s,p)] = False # default every pref to False
-        for pref in self.preferences: # overwrite to two if the employee signed up with any pref score
-            has_pref[(pref[0],pref[1],pref[2])] = True
-
         for (d, s, p) in self.variables.keys():
-            if not has_pref[(d,s,p)]:
+            if (d,s,p) not in self.pdata:
                 self.Add(self.variables[(d, s, p)] == False)
 
     def AddShiftCapacity(self, min=1, leeway=0):
@@ -91,7 +83,7 @@ class ShiftModel(cp_model.CpModel):
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
             self.Add(work_mins < max)
 
-    def AddLongShift(self):
+    def AddMinLongShifts(self, n):
         """Make sure that everyone works at least one long shift.
         """
         long_shifts = set() # find long shifts
@@ -102,7 +94,7 @@ class ShiftModel(cp_model.CpModel):
 
         for p in self.people:
             self.Add(
-                sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) == 1
+                sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) >= n
             ) # A worker has to have exactly one long shift a week
 
     def AddLongShiftBreak(self):
@@ -140,13 +132,9 @@ class ShiftModel(cp_model.CpModel):
         Args:
             fun: function to plug prefscore into before summing.
         """
-        pref = dict() # Index preference scores
-        for praw in self.preferences:
-            pref[(praw[:3])] = praw[3]
-        
-        for works_id in self.variables.keys():
-            if works_id not in pref.keys():
-                pref[works_id] = 0
+        pref = dict()
+        for (d,s,p) in self.variables:
+            pref[(d,s,p)] = self.pdata[(d,s,p)] if (d,s,p) in self.pdata else 0
 
         self.Minimize(
             sum([works*fun(pref[works_id]) for works_id, works in self.variables.items()])
@@ -221,6 +209,22 @@ class ShiftModel(cp_model.CpModel):
             shiftdata[(sraw[0], sraw[1])] = tuple(sraw[2:])
         return shiftdata
 
+    @staticmethod
+    def get_prefdata(preferences, shiftlist):
+        """Build a dictionary with the preference data from a preferences list
+        Args:
+            preferences: list of (day_id, shift_id, person_id, pref_score) tuples
+            shifts: list of (day_id, shift_id, capacity, from, to) tuples where
+        Returns:
+            dictionary of pdata[(day_id, shift_id, person_id)] = pref_score
+        """
+        days = list(ShiftModel.get_daily_shifts(shiftlist).keys()) # Get day names for day indices
+        pdata = dict()
+        for pref in preferences:
+            pdata[(days[pref[0]], pref[1], pref[2])] = pref[3]
+        
+        return pdata
+
 class ShiftSolver(cp_model.CpSolver):
     def __init__(self, shifts, preferences):
         """Args:
@@ -232,28 +236,26 @@ class ShiftSolver(cp_model.CpSolver):
         self.preferences = preferences
         self.model = None
     
-    def Solve(self, params):
-        hours_goal = params['hours_goal']
-        min_workers = params['min_workers']
-        hours_goal_deviances = params['hours_goal_deviances']
-        pref_function = params['pref_function']
+    def Solve(self, hours_goal, min_workers, hours_goal_deviances, pref_function, min_long_shifts):
         for min_cap in min_workers:
             for work_hour_leeway in hours_goal_deviances:
                 self.model = ShiftModel(self.shifts, self.preferences)
                 self.model.AddShiftCapacity(min=min_cap)
                 self.model.AddWorkMinutes(min=(hours_goal-work_hour_leeway)*60, max=(hours_goal+work_hour_leeway)*60)
                 self.model.MaximizeWelfare(pref_function)
+                self.model.AddMinLongShifts(min_long_shifts)
                 super().Solve(self.model)
                 if super().StatusName() != 'INFEASIBLE':
                     print(f'Solution found for the following parameters:')
                     print(f'Hours: {hours_goal}±{work_hour_leeway}')
                     print(f'Minimum people on a shift: {min_cap}')
-                    return
+                    return True # Solution found
                 else:
                     print(f'No solution found for {hours_goal}±{work_hour_leeway} {min_cap}')
+        return False # No solution found
     
     def get_overview(self):
-        return self.get_shift_workers() + self.get_employees_hours()
+        return self.get_shift_workers(with_preferences=True) + self.get_employees_hours()
 
     def get_shift_workers(self, with_preferences=False):
         """Human-readable overview of the shifts
@@ -263,10 +265,6 @@ class ShiftSolver(cp_model.CpSolver):
             Multiline string
         """
         txt = str()
-        if with_preferences:
-            pref = dict() # Index preference scores
-            for praw in self.model.preferences:
-                pref[(praw[:3])] = praw[3]
 
         for d, shifts in self.model.daily_shifts.items():
             txt += f'Day {d}:\n'
@@ -277,7 +275,7 @@ class ShiftSolver(cp_model.CpSolver):
                     if self.Value(self.model.variables[(d,s,p)]):
                         txt += f'        {p}'
                         if with_preferences:
-                            txt += f'preference {pref[(d,s,p)]}'
+                            txt += f'preference {self.model.pdata[(d,s,p)]}'
                         txt += '\n'
             txt += '\n'
         if with_preferences:
@@ -318,17 +316,15 @@ class ShiftSolver(cp_model.CpSolver):
 if __name__ == "__main__":
     requests = preferences_from_csv()
     shifts = shifts_from_json()
-    parameters = {
-        'hours_goal': 20,
-        'min_workers': (1, 0),
-        'hours_goal_deviances': (1,2,3),
-        'pref_function': lambda x: x
-    }
     solver = ShiftSolver(shifts, requests)
-    solver.Solve(parameters)
-    print(solver.get_overview())
-
-# TODO input of shifts from file
+    if solver.Solve(
+        hours_goal=12,
+        min_workers=(1, 0),
+        hours_goal_deviances=range(1,5),
+        pref_function= lambda x: x,
+        min_long_shifts= 0
+        ):
+        print(solver.get_overview())
 
 # TODO add employer reports to file
     # Extensive stats

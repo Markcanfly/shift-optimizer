@@ -1,7 +1,7 @@
 """Static data definition for the flat_shifts."""
 import json
 import csv
-
+# TODO Handle file errors
 def preferences_from_csv(filename="data.csv") -> list:
     """Read the preference data from a csv, 
     and return it in a solver-compatible format. 

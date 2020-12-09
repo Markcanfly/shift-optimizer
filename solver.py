@@ -255,7 +255,7 @@ class ShiftSolver(cp_model.CpSolver):
         return False # No solution found
     
     def get_overview(self):
-        return self.get_shift_workers(with_preferences=True) + self.get_employees_hours()
+        return self.get_shift_workers() + self.get_employees_hours()
 
     def get_shift_workers(self, with_preferences=False):
         """Human-readable overview of the shifts

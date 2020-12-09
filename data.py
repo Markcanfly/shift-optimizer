@@ -11,7 +11,7 @@ def preferences_from_csv(filename="data.csv") -> list:
     """
     firstrow = True
     preferences = []
-    with open(filename, "r") as csvfile:
+    with open(filename, "r", encoding='utf8') as csvfile:
         csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
         for row in csvreader:
             if firstrow:
@@ -39,7 +39,7 @@ def shifts_from_json(filename="shifts.json"):
         return t[0]*60 + t[1]
 
     with open(filename, 'r', encoding='utf8') as jsonfile:
-        shift_dict = json.load(jsonfile)
+        shift_dict = json.load(jsonfile, )
 
     flat_shifts = []
 

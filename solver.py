@@ -236,7 +236,9 @@ class ShiftSolver(cp_model.CpSolver):
         self.preferences = preferences
         self.model = None
     
-    def Solve(self, hours_goal, min_workers, hours_goal_deviances, pref_function, min_long_shifts):
+    def Solve(self, hours_goal, min_workers, hours_goal_deviances, pref_function, min_long_shifts, timeout):
+        """ TODO describe params
+        """
         for min_cap in min_workers:
             for work_hour_leeway in hours_goal_deviances:
                 self.model = ShiftModel(self.shifts, self.preferences)
@@ -244,7 +246,7 @@ class ShiftSolver(cp_model.CpSolver):
                 self.model.AddWorkMinutes(min=(hours_goal-work_hour_leeway)*60, max=(hours_goal+work_hour_leeway)*60)
                 self.model.MaximizeWelfare(pref_function)
                 self.model.AddMinLongShifts(min_long_shifts)
-                self.parameters.max_time_in_seconds = 10.0
+                self.parameters.max_time_in_seconds = timeout
                 super().Solve(self.model)
                 if super().StatusName() != 'INFEASIBLE':
                     print(f'Solution found for the following parameters:')

@@ -244,6 +244,7 @@ class ShiftSolver(cp_model.CpSolver):
                 self.model.AddWorkMinutes(min=(hours_goal-work_hour_leeway)*60, max=(hours_goal+work_hour_leeway)*60)
                 self.model.MaximizeWelfare(pref_function)
                 self.model.AddMinLongShifts(min_long_shifts)
+                self.parameters.max_time_in_seconds = 10.0
                 super().Solve(self.model)
                 if super().StatusName() != 'INFEASIBLE':
                     print(f'Solution found for the following parameters:')

@@ -239,26 +239,34 @@ class ShiftSolver(cp_model.CpSolver):
         self.preferences = preferences
         self.model = None
     
-    def Solve(self, hours_goal, min_workers, hours_goal_deviances, pref_function, min_long_shifts, timeout=10):
-        """ TODO describe params
+    def Solve(self, min_workers, min_hours, max_hours, min_long_shifts, pref_function=lambda x:x, timeout=10):
+        """ 
+        Args:
+            min_workers: The minimum number of workers that have to be assigned to every shift
+            min_hours: The minimum number of hours every worker has to work
+            max_hours: The maximum number of hours every worker has to work
+            min_long_shifts: Minimum number of long shifts for every worker
+            pref_function: function that takes and returns an integer, used for weighting of the pref function
+            timeout: number of seconds that the solver can take to find the optimal solution
+        Returns:
+            Boolean: whether the solver found a solution.
         """
-        for min_cap in min_workers:
-            for work_hour_leeway in hours_goal_deviances:
-                self.model = ShiftModel(self.shifts, self.preferences)
-                self.model.AddShiftCapacity(min=min_cap)
-                self.model.AddWorkMinutes(min=(hours_goal-work_hour_leeway)*60, max=(hours_goal+work_hour_leeway)*60)
-                self.model.MaximizeWelfare(pref_function)
-                self.model.AddMinLongShifts(min_long_shifts)
-                self.parameters.max_time_in_seconds = timeout
-                super().Solve(self.model)
-                if super().StatusName() != 'INFEASIBLE':
-                    print(f'Solution found for the following parameters:')
-                    print(f'Hours: {hours_goal}±{work_hour_leeway}')
-                    print(f'Minimum people on a shift: {min_cap}')
-                    return True # Solution found
-                else:
-                    print(f'No solution found for {hours_goal}±{work_hour_leeway} {min_cap}')
-        return False # No solution found
+        
+        self.model = ShiftModel(self.shifts, self.preferences)
+        self.model.AddShiftCapacity(min=min_workers)
+        self.model.AddWorkMinutes(min=min_hours*60, max=max_hours*60)
+        self.model.MaximizeWelfare(pref_function)
+        self.model.AddMinLongShifts(min_long_shifts)
+        self.parameters.max_time_in_seconds = timeout
+        super().Solve(self.model)
+        if super().StatusName() != 'INFEASIBLE':
+            print(f'Solution found for the following parameters:')
+            print(f'Hours: {min_hours}<t<{max_hours}')
+            print(f'Minimum people on a shift: {min_workers}')
+            return True
+        else:
+            print(f'No solution found for {min_hours}<t<{max_hours} With a minimum of {min_workers} for each shift')
+        return False
     
     def get_overview(self):
         return self.get_shift_workers() + self.get_employees_hours()
@@ -318,20 +326,6 @@ class ShiftSolver(cp_model.CpSolver):
                     shift_dur_str = f'{get_printable_time(self.model.sdata[(d,s)][1])}-{get_printable_time(self.model.sdata[(d,s)][2])}'
                     txt += f'    Shift {s} {shift_dur_str}\n'
         return txt
-
-if __name__ == "__main__":
-    requests = preferences_from_csv()
-    shifts = shifts_from_json()
-    solver = ShiftSolver(shifts, requests)
-    if solver.Solve(
-        hours_goal=12,
-        min_workers=(1, 0),
-        hours_goal_deviances=range(1,5),
-        pref_function= lambda x: x,
-        min_long_shifts=0,
-        timeout=10
-        ):
-        print(solver.get_overview())
 
 # TODO add employer reports to file
     # Extensive stats

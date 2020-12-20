@@ -69,19 +69,13 @@ class ShiftModel(cp_model.CpModel):
         for (d,s),(c, begin, end) in self.sdata.items():
             del c # Capacity is not used here
             mins_of_shift[(d,s)] = end - begin
-        # TODO MAKE THIS CLEANER. This atrocity is ugly, but it works. Figure out how to set upper and lower bounds manually.
+        
         for p in self.people:
             work_mins = 0
             for d, shifts in self.daily_shifts.items():
                 for s in shifts:
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
-            self.Add(min < work_mins)
-        for p in self.people:
-            work_mins = 0
-            for d, shifts in self.daily_shifts.items():
-                for s in shifts:
-                    work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
-            self.Add(work_mins < max)
+            self.AddLinearConstraint(work_mins, min, max)
 
     def AddMinLongShifts(self, n, length=300):
         """Make sure that everyone works at least n long shifts.

@@ -83,13 +83,16 @@ class ShiftModel(cp_model.CpModel):
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
             self.Add(work_mins < max)
 
-    def AddMinLongShifts(self, n):
-        """Make sure that everyone works at least one long shift.
+    def AddMinLongShifts(self, n, length=300):
+        """Make sure that everyone works at least n long shifts.
+        Args:
+            n: the number of shifts one needs to work
+            length: the length (in minutes) that the shifts needs to be LONGER THAN (>) to qualify
         """
         long_shifts = set() # find long shifts
         for (d, s), (c, begin, end) in self.sdata.items():
             del c # Capacity is not used here
-            if end - begin > 5*60: # Number of minutes
+            if end - begin > length: # Number of minutes
                 long_shifts.add((d, s))
 
         for p in self.people:
@@ -236,7 +239,7 @@ class ShiftSolver(cp_model.CpSolver):
         self.preferences = preferences
         self.model = None
     
-    def Solve(self, hours_goal, min_workers, hours_goal_deviances, pref_function, min_long_shifts, timeout):
+    def Solve(self, hours_goal, min_workers, hours_goal_deviances, pref_function, min_long_shifts, timeout=10):
         """ TODO describe params
         """
         for min_cap in min_workers:
@@ -325,7 +328,8 @@ if __name__ == "__main__":
         min_workers=(1, 0),
         hours_goal_deviances=range(1,5),
         pref_function= lambda x: x,
-        min_long_shifts= 0
+        min_long_shifts=0,
+        timeout=10
         ):
         print(solver.get_overview())
 

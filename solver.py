@@ -44,12 +44,11 @@ class ShiftModel(cp_model.CpModel):
             if (d,s,p) not in self.pdata:
                 self.Add(self.variables[(d, s, p)] == False)
 
-    def AddShiftCapacity(self, min=1, leeway=0):
+    def AddShiftCapacity(self, min):
         """Make sure that there are exactly as many employees assigned
         to a shift as it has capacity.
         Args:
             min: the absolute minimum number of people assigned to each shift
-            leeway: the minimum relative to the capacity
         """
         for d, shifts in self.daily_shifts.items():
             for s in shifts:
@@ -77,7 +76,7 @@ class ShiftModel(cp_model.CpModel):
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
             self.AddLinearConstraint(work_mins, min, max)
 
-    def AddMinLongShifts(self, n, length=300):
+    def AddLongShifts(self, n, length=300):
         """Make sure that everyone works at least n long shifts.
         Args:
             n: the number of shifts one needs to work
@@ -91,7 +90,7 @@ class ShiftModel(cp_model.CpModel):
 
         for p in self.people:
             self.Add(
-                sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) >= n
+                sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) == n
             ) # A worker has to have exactly one long shift a week
 
     def AddLongShiftBreak(self):
@@ -233,13 +232,13 @@ class ShiftSolver(cp_model.CpSolver):
         self.preferences = preferences
         self.model = None
     
-    def Solve(self, min_workers, min_hours, max_hours, min_long_shifts, pref_function=lambda x:x, timeout=10):
+    def Solve(self, min_workers, min_hours, max_hours, n_long_shifts, pref_function=lambda x:x, timeout=10):
         """ 
         Args:
             min_workers: The minimum number of workers that have to be assigned to every shift
             min_hours: The minimum number of hours every worker has to work
             max_hours: The maximum number of hours every worker has to work
-            min_long_shifts: Minimum number of long shifts for every worker
+            n_long_shifts: Number of long shifts for every worker
             pref_function: function that takes and returns an integer, used for weighting of the pref function
             timeout: number of seconds that the solver can take to find the optimal solution
         Returns:
@@ -250,17 +249,17 @@ class ShiftSolver(cp_model.CpSolver):
         self.model.AddShiftCapacity(min=min_workers)
         self.model.AddWorkMinutes(min=min_hours*60, max=max_hours*60)
         self.model.MaximizeWelfare(pref_function)
-        self.model.AddMinLongShifts(min_long_shifts)
+        if n_long_shifts != 0: self.model.AddLongShifts(n_long_shifts)
         self.parameters.max_time_in_seconds = timeout
         super().Solve(self.model)
         if super().StatusName() in ('FEASIBLE', 'OPTIMAL'):
             print(f'Solution found for the following parameters:')
             print(f'Hours: {min_hours}<t<{max_hours}')
             print(f'Minimum people on a shift: {min_workers}')
-            print(f'Minimum number long shifts assigned to everyone {min_long_shifts}')
+            print(f'Minimum number long shifts assigned to everyone {n_long_shifts}')
             return True
         else:
-            print(f'No solution found for {min_hours}<t<{max_hours} With a minimum of {min_workers} for each shift and minimum of {min_long_shifts} long shifts  ')
+            print(f'No solution found for {min_hours}<t<{max_hours} With a minimum of {min_workers} for each shift and minimum of {n_long_shifts} long shifts  ')
         return False
     
     def get_overview(self):

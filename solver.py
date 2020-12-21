@@ -52,9 +52,7 @@ class ShiftModel(cp_model.CpModel):
         """
         for d, shifts in self.daily_shifts.items():
             for s in shifts:
-                self.Add(min <= sum(self.variables[(d, s, p)] for p in self.people)) # Minimum
-                # self.Add((self.sdata[(d,s)][0] - leeway) <= sum(self.variables[(d, s, p)] for p in self.people)) # Add leeway, useful when capacity>1
-                self.Add(sum(self.variables[(d, s, p)] for p in self.people) <= self.sdata[(d,s)][0])
+                self.AddLinearConstraint(sum(self.variables[(d, s, p)] for p in self.people), min, self.sdata[(d,s)][0])
 
     def AddWorkMinutes(self, min, max):
         """Make sure that everyone works the minimum number of minutes,

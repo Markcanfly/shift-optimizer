@@ -253,13 +253,14 @@ class ShiftSolver(cp_model.CpSolver):
         self.model.AddMinLongShifts(min_long_shifts)
         self.parameters.max_time_in_seconds = timeout
         super().Solve(self.model)
-        if super().StatusName() != 'INFEASIBLE':
+        if super().StatusName() in ('FEASIBLE', 'OPTIMAL'):
             print(f'Solution found for the following parameters:')
             print(f'Hours: {min_hours}<t<{max_hours}')
             print(f'Minimum people on a shift: {min_workers}')
+            print(f'Minimum number long shifts assigned to everyone {min_long_shifts}')
             return True
         else:
-            print(f'No solution found for {min_hours}<t<{max_hours} With a minimum of {min_workers} for each shift')
+            print(f'No solution found for {min_hours}<t<{max_hours} With a minimum of {min_workers} for each shift and minimum of {min_long_shifts} long shifts  ')
         return False
     
     def get_overview(self):

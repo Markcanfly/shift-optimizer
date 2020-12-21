@@ -13,10 +13,12 @@ args = parser.parse_args()
 
 solver = ShiftSolver(shifts=data.shifts_from_json(args.shifts), preferences=data.preferences_from_csv(args.prefs))
 for min_workers in (1, 0): 
-    solver.Solve(
-    min_workers=min_workers, 
-    min_hours=args.minimum_hours, 
-    max_hours=args.maximum_hours, 
-    min_long_shifts=args.long_shifts
-    )
-    print(solver.get_overview())
+    if solver.Solve(
+        min_workers=min_workers, 
+        min_hours=args.minimum_hours, 
+        max_hours=args.maximum_hours, 
+        min_long_shifts=args.long_shifts
+                    ):
+        print(solver.get_overview())
+        break
+    

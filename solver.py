@@ -91,15 +91,20 @@ class ShiftModel(cp_model.CpModel):
                 sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) == n
             ) # A worker has to have exactly one long shift a week
 
-    def AddLongShiftBreak(self):
+    def AddLongShiftBreak(self, length=300):
+        """Make sure that if you work a long shift, you're not gonna work
+        another shift on the some day.
+        """
         long_shifts = set() # find long shifts
         for (d, s), (c, begin, end) in self.sdata.items():
             del c # Capacity is not used here
-            if end - begin > 5*60: # Number of minutes
+            if end - begin > length: # Number of minutes
                 long_shifts.add((d, s))
         
         for p in self.people:
             for (d,long_s) in long_shifts:
+                # Technically: for each long shift, if p works on that long shift, make sure that for that day,
+                # The number of shifts worked for that person is exactly one.
                 self.Add(sum([(self.variables[d,s,p]) for s in self.daily_shifts[d]]) == 1).OnlyEnforceIf(self.variables[d,long_s,p])
 
     def AddNoConflict(self):

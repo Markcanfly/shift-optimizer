@@ -117,6 +117,24 @@ class ShiftModel(cp_model.CpModel):
                 # Both of them can't be true for the same person
                 self.Add(self.variables[(d,s1,p)] + self.variables[(d,s2,p)] < 2)
 
+    def AddSleep(self):
+        """Make sure that no one has a shift in the morning,
+        if they had a shift last evening.
+        """ # WARN Without a catalog of all days in the week, this fails when the days are nonconsecutive.
+        
+        conflicting_pairs = set() # Pairs of (d1,s1), (d2,s2)
+        
+        first_last_list = list(self.get_first_last_shifts().items())
+        for i in range(len(first_last_list)-1):
+            today_last = (first_last_list[i][0], first_last_list[i][1][1]) # (d1, s1)
+            next_first = (first_last_list[i+1][0], first_last_list[i+1][1][0]) # (d2, s2)
+            conflicting_pairs.add((today_last, next_first))
+        
+        for p in self.people:
+            for (d1, s1),(d2,s2) in conflicting_pairs:
+                # Both of them can't be true for the same person
+                self.Add(self.variables[(d1,s1,p)] + self.variables[(d2,s2,p)] < 2)
+
     def MaximizeWelfare(self, fun):
         """Maximize the welfare of the employees.
         This target will minimize the dissatisfaction of the employees
@@ -133,7 +151,19 @@ class ShiftModel(cp_model.CpModel):
         self.Minimize(
             sum([works*fun(pref[works_id]) for works_id, works in self.variables.items()])
         )
-        
+
+    # Helper methods
+
+    def get_first_last_shifts(self):
+        # Create a dictionary so that
+        # first_last['day'] = (firstshift_id, lastshift_id)
+        first_last = dict()
+        for day, shift_ids in self.daily_shifts.items():
+            first = sorted(shift_ids, key= lambda s: self.sdata[day,s][1])[0] # By beginning, ascending
+            last = sorted(shift_ids, key= lambda s: self.sdata[day, s][2], reverse=True)[0] # By end, descending
+            first_last[day] = (first, last)
+
+        return first_last
 
     @staticmethod
     def get_daily_shifts(shiftlist):
@@ -196,7 +226,7 @@ class ShiftModel(cp_model.CpModel):
         Args:
             shiftlist: list of (day_id, shift_id, from, to, capacity) tuples
         Returns:
-            dictionary of sdata[(day_id, shift_id)] = (from, to, capacity)
+            dictionary of sdata[(day_id, shift_id)] = (capacity, from, to)
         """
         shiftdata = dict()
         for sraw in shiftlist:
@@ -247,6 +277,7 @@ class ShiftSolver(cp_model.CpSolver):
         self.model.AddShiftCapacity(min=min_workers)
         self.model.AddWorkMinutes(min=min_hours*60, max=max_hours*60)
         self.model.MaximizeWelfare(pref_function)
+        self.model.AddSleep()
         if n_long_shifts != 0: self.model.AddLongShifts(n_long_shifts)
         self.parameters.max_time_in_seconds = timeout
         super().Solve(self.model)

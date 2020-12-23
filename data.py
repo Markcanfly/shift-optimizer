@@ -82,7 +82,20 @@ def hours_from_groups(filename) -> dict:
     
     return hours
         
-def hours_for_everyone(min_hours, max_hours) -> dict:
-    pass # TODO
+def hours_for_everyone(preferences, min_hours, max_hours) -> dict:
+    """Create an hour specification for all people in the preferences,
+    with equal required hours.
+    As if there was a single that everybody was part of.
+    Returns:
+        hours: hours[person_id] = {'min': n1, 'max': n2} dict
+    """
+    hours = dict()
 
-
+    people = set([pref[2] for pref in preferences])
+    for person in people:
+        hours[person] = {
+            'min': min_hours,
+            'max': max_hours
+        }
+    
+    return hours

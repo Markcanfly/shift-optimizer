@@ -15,16 +15,18 @@ class ShiftModel(cp_model.CpModel):
     Then provides an optimal solution (if one exists)
     for the given parameters.
     """
-    def __init__(self, shiftlist, preferences):
+    def __init__(self, shiftlist, preferences, hours):
         """Args:
             shifts: list of (day_id, shift_id, capacity, from, to) tuples where
             preferences: list of (day_id, shift_id, person_id, pref_score) tuples
+            hours: hours[person_id] = {'min': n1, 'max': n2} dict
         """
         super().__init__()
         self.people = ShiftModel.get_people(preferences)
         self.daily_shifts = ShiftModel.get_daily_shifts(shiftlist)
         self.sdata = ShiftModel.get_shiftdata(shiftlist)
         self.pdata = ShiftModel.get_prefdata(preferences, shiftlist)
+        self.hdata = ShiftModel.get_hoursdata(hours, preferences)
 
         self.variables = {}
         for d, shifts in self.daily_shifts.items():
@@ -32,9 +34,12 @@ class ShiftModel(cp_model.CpModel):
                 for p in self.people:
                     self.variables[(d, s, p)] = self.NewBoolVar(f'Day{d} Shift{s} Person{p}')
         
+        # Add must-have-constraints
         self.AddPrefOnly()
         self.AddLongShiftBreak()
         self.AddNoConflict()
+        self.AddSleep()
+        self.AddWorkMinutes()
 
     def AddPrefOnly(self):
         """Make sure that employees only get assigned to a shift
@@ -54,12 +59,10 @@ class ShiftModel(cp_model.CpModel):
             for s in shifts:
                 self.AddLinearConstraint(sum(self.variables[(d, s, p)] for p in self.people), min, self.sdata[(d,s)][0])
 
-    def AddWorkMinutes(self, min, max):
+    def AddWorkMinutes(self):
         """Make sure that everyone works the minimum number of minutes,
         and no one works too much.
-        Args:
-            min: the minimum number of minutes
-            max: the maximum number of minutes
+        This is determined by the hdata dictionary.
         """
         mins_of_shift = dict() # calculate shift hours
 
@@ -72,7 +75,8 @@ class ShiftModel(cp_model.CpModel):
             for d, shifts in self.daily_shifts.items():
                 for s in shifts:
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
-            self.AddLinearConstraint(work_mins, min, max)
+            self.AddLinearConstraint(work_mins, self.hdata[p]['min']*60, self.hdata[p]['max']*60)
+
 
     def AddLongShifts(self, n, length=300):
         """Make sure that everyone works at least n long shifts.
@@ -254,6 +258,23 @@ class ShiftModel(cp_model.CpModel):
         
         return pdata
 
+    @staticmethod
+    def get_hoursdata(hours, preferences):
+        """Create valid personal hour requirement dictionary.
+        Make sure that there are no person_id -s in preferences that don't have a min-max value in hours.
+        Make sure that the format is correct
+        Args:
+            hours: hours[person_id] = (min, max) structured dict
+            preferences: list of (day_id, shift_id, person_id, pref_score) tuples to validate p_ids against
+        """
+        person_ids_not_in_hours = set([pref[2] for pref in preferences]).difference(hours.keys())
+        if len(person_ids_not_in_hours) > 0:
+            raise ValueError(f"Some names were not found in the hours dictionary: {person_ids_not_in_hours}")
+        for p_hours in hours.values():
+            assert isinstance(p_hours['min'], int) and isinstance(p_hours['max'], int)
+            assert p_hours['min'] < p_hours['max']
+        return hours
+
 class ShiftSolver(cp_model.CpSolver):
     def __init__(self, shifts, preferences):
         """Args:
@@ -265,12 +286,11 @@ class ShiftSolver(cp_model.CpSolver):
         self.preferences = preferences
         self.model = None
     
-    def Solve(self, min_workers, min_hours, max_hours, n_long_shifts, pref_function=lambda x:x, timeout=10):
+    def Solve(self, min_workers, hours, n_long_shifts, pref_function=lambda x:x, timeout=10):
         """ 
         Args:
             min_workers: The minimum number of workers that have to be assigned to every shift
-            min_hours: The minimum number of hours every worker has to work
-            max_hours: The maximum number of hours every worker has to work
+            hours: hours[person_id] = {'min': n1, 'max': n2} dict
             n_long_shifts: Number of long shifts for every worker
             pref_function: function that takes and returns an integer, used for weighting of the pref function
             timeout: number of seconds that the solver can take to find the optimal solution
@@ -278,22 +298,19 @@ class ShiftSolver(cp_model.CpSolver):
             Boolean: whether the solver found a solution.
         """
         
-        self.model = ShiftModel(self.shifts, self.preferences)
+        self.model = ShiftModel(self.shifts, self.preferences, hours)
         self.model.AddShiftCapacity(min=min_workers)
-        self.model.AddWorkMinutes(min=min_hours*60, max=max_hours*60)
         self.model.MaximizeWelfare(pref_function)
-        self.model.AddSleep()
         if n_long_shifts != 0: self.model.AddLongShifts(n_long_shifts)
         self.parameters.max_time_in_seconds = timeout
         super().Solve(self.model)
         if super().StatusName() in ('FEASIBLE', 'OPTIMAL'):
             print(f'Solution found for the following parameters:')
-            print(f'Hours: {min_hours}<t<{max_hours}')
             print(f'Minimum people on a shift: {min_workers}')
             print(f'Minimum number long shifts assigned to everyone {n_long_shifts}')
             return True
         else:
-            print(f'No solution found for {min_hours}<t<{max_hours} With a minimum of {min_workers} for each shift and minimum of {n_long_shifts} long shifts  ')
+            print(f'No solution found for minimum of {min_workers} for each shift and minimum of {n_long_shifts} long shifts')
         return False
     
     def get_overview(self):

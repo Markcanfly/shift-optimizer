@@ -20,7 +20,12 @@ def write_to_file(filename, shift_tuples, preferences, assignments=None):
     time_f = workbook.add_format({'num_format': 'hh:mm'})
     
     # Shifts
-    for rowidx, shift_tuple in enumerate(shift_tuples):
+    
+    ## Headers
+    for idx, txt in enumerate(["Day", "ShiftID", "Capacity", "Begin", "End", "strID"]):
+        shifts_wb.write(0, idx, txt)
+
+    for rowidx, shift_tuple in enumerate(shift_tuples, start=1):
         shifts_wb.write(rowidx, 0, shift_tuple[0]) # Day
         shifts_wb.write(rowidx, 1, shift_tuple[1]) # ShiftId
         shifts_wb.write(rowidx, 2, shift_tuple[2]) # Capacity
@@ -39,12 +44,17 @@ def write_to_file(filename, shift_tuples, preferences, assignments=None):
     for p in preferences:
         pref[days[p[0]],p[1], p[2]] = p[3]
     
-    # Write to the sheet
+        
     pref_wb = workbook.add_worksheet(name="preferences")
-    for rowidx, s in enumerate(shift_tuples):
+    # Write to the sheet
+    ## Headers
+    for idx, txt in enumerate(["strID"] + people):
+        pref_wb.write(0, idx, txt)
+
+    for rowidx, s in enumerate(shift_tuples, start=1):
         pref_wb.write(rowidx, 0, str(s[0])+str(s[1])) # strID
-        for colidx, p in enumerate(people):
-            pref_wb.write(rowidx, colidx+1, pref[s[0],s[1], p])
+        for colidx, p in enumerate(people, start=1):
+            pref_wb.write(rowidx, colidx, pref[s[0],s[1], p])
 
     workbook.close()
     

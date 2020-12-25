@@ -15,18 +15,18 @@ class ShiftModel(cp_model.CpModel):
     Then provides an optimal solution (if one exists)
     for the given parameters.
     """
-    def __init__(self, shiftlist, preferences, hours):
+    def __init__(self, shiftlist, preferences, groups):
         """Args:
             shifts: list of (day_id, shift_id, capacity, from, to) tuples where
             preferences: list of (day_id, shift_id, person_id, pref_score) tuples
-            hours: hours[person_id] = {'min': n1, 'max': n2} dict
+            group: group[person_id] = {'min': n1, 'max': n2, 'long_shifts': n3} dict
         """
         super().__init__()
         self.people = ShiftModel.get_people(preferences)
         self.daily_shifts = ShiftModel.get_daily_shifts(shiftlist)
         self.sdata = ShiftModel.get_shiftdata(shiftlist)
         self.pdata = ShiftModel.get_prefdata(preferences, shiftlist)
-        self.hdata = ShiftModel.get_hoursdata(hours, preferences)
+        self.hdata = ShiftModel.get_hoursdata(groups, preferences)
 
         self.variables = {}
         for d, shifts in self.daily_shifts.items():
@@ -286,7 +286,7 @@ class ShiftSolver(cp_model.CpSolver):
         self.preferences = preferences
         self.model = None
     
-    def Solve(self, min_workers, hours, n_long_shifts, pref_function=lambda x:x, timeout=10):
+    def Solve(self, min_workers, groups, n_long_shifts, pref_function=lambda x:x, timeout=10):
         """ 
         Args:
             min_workers: The minimum number of workers that have to be assigned to every shift
@@ -298,7 +298,7 @@ class ShiftSolver(cp_model.CpSolver):
             Boolean: whether the solver found a solution.
         """
         
-        self.model = ShiftModel(self.shifts, self.preferences, hours)
+        self.model = ShiftModel(self.shifts, self.preferences, groups)
         self.model.AddShiftCapacity(min=min_workers)
         self.model.MaximizeWelfare(pref_function)
         if n_long_shifts != 0: self.model.AddLongShifts(n_long_shifts)

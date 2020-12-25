@@ -49,7 +49,7 @@ def shifts_from_json(filename="shifts.json"):
     
     return flat_shifts
 
-def hours_from_groups(filename) -> dict:
+def groups_from_json(filename) -> dict:
     """Read the group data from a json,
     and return it in a solver-compatible format.
     Make sure it's valid.
@@ -60,27 +60,28 @@ def hours_from_groups(filename) -> dict:
                 "p_id2",...
             ],
             "min_hours": 25,
-            "max_hours": 35
+            "max_hours": 35,
+            "long_shifts": 1
         },...
     Returns:
-        hours: hours[person_id] = {'min': n1, 'max': n2} dict
+        group: group[person_id] = {'min': n1, 'max': n2, 'long_shifts': n3} dict
     """
     
     with open(filename, 'r', encoding='utf8') as jsonfile:
-        hours_raw = json.load(jsonfile)
+        groups_raw = json.load(jsonfile)
     
-    hours = dict()
+    group = dict()
 
     people_list = [] # For validating that one name is in one group only
-    for group in hours_raw.values():
-        people_list += group['people'] # For validation
-        for person_id in group['people']:
-            hours[person_id] = {'min': group['min_hours'], 'max': group['max_hours']}
+    for g in groups_raw.values():
+        people_list += g['people'] # For validation
+        for person_id in g['people']:
+            group[person_id] = {'min': g['min_hours'], 'max': g['max_hours']}
     
     if len(set(people_list)) != len(people_list):
         raise ValueError('One or more person_id is assigned to multiple groups.')
     
-    return hours
+    return group
         
 def hours_for_everyone(preferences, min_hours, max_hours) -> dict:
     """Create an hour specification for all people in the preferences,

@@ -1,4 +1,5 @@
 import xlsxwriter
+from xlsxwriter.utility import xl_rowcol_to_cell as celln
 import data
 from colour import Color
 
@@ -80,7 +81,7 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments):
     assign_ws = workbook.add_worksheet(name="assignments")
     # Write to the sheet
     ## Headers
-    for idx, txt in enumerate(["strID"] + people):
+    for idx, txt in enumerate(["strID"] + people + ["n assigned", "capacity"]):
         assign_ws.write(0, idx, txt)
 
     for rowidx, (d,s,c,b,e) in enumerate(shift_tuples, start=1):
@@ -94,6 +95,28 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments):
                 pref_format = workbook.add_format({'bg_color':pref_color})
                 assign_ws.write_boolean(rowidx, colidx, assignments[d,s,p], pref_format)
     
+    # Add shift capacity condition indicator
+    ## Add a formula to the end of each row,
+    ## to calculate the number of people assigned.
+    ## Add conditional formatting to this cell,
+    ## so that it's:
+    ##      green,  when the shift is full
+    ##      orange, when the shift is below capacity
+    ##      red,    when the shift is over capacity
+    for rowidx, (d,s,c,b,e) in enumerate(shift_tuples, start=1):
+        del c,b,e # We don't need them here, because c has to be dynamic
+        # Current shift state
+        assign_ws.write_formula(
+            rowidx, len(people)+1, 
+            f'=COUNTIF({celln(rowidx, 1)}:{celln(rowidx,len(people))}, TRUE)')
+        # Capacity
+        assign_ws.write_formula(
+            rowidx, len(people)+2,
+            f'=shifts!C{rowidx+1}')
+
+        # TODO Conditional formatting
+        
+
     # Add conditional to highlight actual applications
     applied_shift_format = workbook.add_format({
         'bold': True,

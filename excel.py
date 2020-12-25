@@ -1,5 +1,6 @@
 import xlsxwriter
 import data
+from colour import Color
 
 def get_days(shift_tuples):
     """Get the list of day names, in order,
@@ -10,6 +11,20 @@ def get_days(shift_tuples):
         if s[0] not in daylist:
             daylist.append(s[0])
     return daylist
+
+def get_prefcolor(n, max_n):
+    """Takes a pref score, and a worst pref score,
+    and returns a color to format how good that pref score is.
+    Args:
+        n: the pref score
+        max_n: the worst pref score for that shift
+    Returns:
+        color: long hex color
+    """
+    assert n <= max_n
+    good = Color('#bef7c5')
+    bad = Color('#ffd9d9')
+    return list(good.range_to(bad, max_n + 1))[n].hex_l
 
 def get_people(preferences):
     return list(set([p[2] for p in preferences]))
@@ -75,7 +90,9 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments):
             if pref[d,s,p] is None:
                 assign_ws.write_boolean(rowidx, colidx, assignments[d,s,p], no_pref)
             else:
-                assign_ws.write_boolean(rowidx, colidx, assignments[d,s,p])
+                pref_color = get_prefcolor(pref[d,s,p], max([pref[d,s,p] for p in people if pref[d,s,p] is not None]))
+                pref_format = workbook.add_format({'bg_color':pref_color})
+                assign_ws.write_boolean(rowidx, colidx, assignments[d,s,p], pref_format)
     workbook.close()
     
 if __name__ == "__main__": # For testing only

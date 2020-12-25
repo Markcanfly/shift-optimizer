@@ -111,3 +111,35 @@ def hours_for_everyone(preferences, min_hours, max_hours) -> dict:
         }
     
     return hours
+
+def json_compatible_solve(values):
+    """Create a JSON-compatible dict from
+    a solver values dict.
+    Args:
+        values: [(day,shift,person)] = True | False
+    Returns:
+        assigned[day][shift][person] = True | False
+    """
+    assigned = dict()
+    for d,s,p in values.keys():
+        if d not in assigned.keys():
+            assigned[d] = {s: {p: values[d,s,p]}}
+        if s not in assigned[d].keys():
+            assigned[d][s] = {p: values[d,s,p]}
+        assigned[d][s][p] = values[d,s,p]
+    return assigned
+
+def solve_from_json_compatible(jsondict):
+    """Create a solver values dict from
+    a JSON-converted dict
+    Args:
+        assigned[day][shift][person] = True | False
+    Returns:
+        values: [(day,shift,person)] = True | False
+    """
+    values = dict()
+    for d, v1 in jsondict.items():
+        for s, v2 in v1.items():
+            for p, assigned_status in v2:
+                values[d,s,p] = assigned_status
+    return values

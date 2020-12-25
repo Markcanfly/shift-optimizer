@@ -14,47 +14,48 @@ def get_days(shift_tuples):
 def get_people(preferences):
     return list(set([p[2] for p in preferences]))
 
-def write_to_file(filename, shift_tuples, preferences, assignments=None):
+def write_to_file(filename, shift_tuples, pref_tuples, assignments):
     workbook = xlsxwriter.Workbook(filename)
-    shifts_wb = workbook.add_worksheet(name="shifts")
+    shifts_ws = workbook.add_worksheet(name="shifts")
     time_f = workbook.add_format({'num_format': 'hh:mm'})
     
     # Shifts
     
     ## Headers
     for idx, txt in enumerate(["Day", "ShiftID", "Capacity", "Begin", "End", "strID"]):
-        shifts_wb.write(0, idx, txt)
+        shifts_ws.write(0, idx, txt)
 
     for rowidx, shift_tuple in enumerate(shift_tuples, start=1):
-        shifts_wb.write(rowidx, 0, shift_tuple[0]) # Day
-        shifts_wb.write(rowidx, 1, shift_tuple[1]) # ShiftId
-        shifts_wb.write(rowidx, 2, shift_tuple[2]) # Capacity
-        shifts_wb.write(rowidx, 3, shift_tuple[3]/(24*60), time_f) # Begin time
-        shifts_wb.write(rowidx, 4, shift_tuple[4]/(24*60), time_f) # End time
-        shifts_wb.write(rowidx, 5, str(shift_tuple[0])+str(shift_tuple[1])) # strID - should be unique
+        shifts_ws.write(rowidx, 0, shift_tuple[0]) # Day
+        shifts_ws.write(rowidx, 1, shift_tuple[1]) # ShiftId
+        shifts_ws.write(rowidx, 2, shift_tuple[2]) # Capacity
+        shifts_ws.write(rowidx, 3, shift_tuple[3]/(24*60), time_f) # Begin time
+        shifts_ws.write(rowidx, 4, shift_tuple[4]/(24*60), time_f) # End time
+        shifts_ws.write(rowidx, 5, str(shift_tuple[0])+str(shift_tuple[1])) # strID - should be unique
     
     # Preferences
     ## Generate pref[(day_id, shift_id, person_id)] = pref_score or None
     pref = dict()
     days = get_days(shift_tuples)
-    people = get_people(preferences)
-    for s in shift_tuples: # Default to None
+    people = get_people(pref_tuples)
+    for (d,s,c,b,e) in shift_tuples: # Default to None
+        del c,b,e # We don't need them here
         for person in people:
-            pref[s[0], s[1], person] = None
-    for p in preferences:
-        pref[days[p[0]],p[1], p[2]] = p[3]
+            pref[d, s, person] = None
+    for (d,s,p,prefscore) in pref_tuples:
+        pref[days[d],s, p] = prefscore
     
-        
-    pref_wb = workbook.add_worksheet(name="preferences")
     # Write to the sheet
+    pref_ws = workbook.add_worksheet(name="preferences")
     ## Headers
     for idx, txt in enumerate(["strID"] + people):
-        pref_wb.write(0, idx, txt)
+        pref_ws.write(0, idx, txt)
 
-    for rowidx, s in enumerate(shift_tuples, start=1):
-        pref_wb.write(rowidx, 0, str(s[0])+str(s[1])) # strID
+    for rowidx, (d,s,c,b,e) in enumerate(shift_tuples, start=1):
+        del c,b,e # We don't need them here
+        pref_ws.write(rowidx, 0, str(d)+str(s)) # strID
         for colidx, p in enumerate(people, start=1):
-            pref_wb.write(rowidx, colidx, pref[s[0],s[1], p])
+            pref_ws.write(rowidx, colidx, pref[d,s,p])
 
     workbook.close()
     

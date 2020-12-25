@@ -93,6 +93,21 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments):
                 pref_color = get_prefcolor(pref[d,s,p], max([pref[d,s,p] for p in people if pref[d,s,p] is not None]))
                 pref_format = workbook.add_format({'bg_color':pref_color})
                 assign_ws.write_boolean(rowidx, colidx, assignments[d,s,p], pref_format)
+    
+    # Add conditional to highlight actual applications
+    applied_shift_format = workbook.add_format({
+        'bold': True,
+        'border': 1
+    })
+    assign_ws.conditional_format(0,0, len(shift_tuples)+1, len(people)+1,
+        {
+            'type': 'cell',
+            'criteria': '==',
+            'value': True,
+            'format': applied_shift_format
+        }
+    )
+
     workbook.close()
     
 if __name__ == "__main__": # For testing only

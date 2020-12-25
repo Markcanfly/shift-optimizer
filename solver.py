@@ -273,7 +273,7 @@ class ShiftModel(cp_model.CpModel):
         for p_groupvals in groups.values():
             assert isinstance(p_groupvals['min'], int) and isinstance(p_groupvals['max'], int)
             assert p_groupvals['min'] < p_groupvals['max']
-            assert isinstance(p_groupvals['long_shift'], int)
+            assert isinstance(p_groupvals['long_shifts'], int)
         return groups
 
 class ShiftSolver(cp_model.CpSolver):

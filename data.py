@@ -76,7 +76,7 @@ def groups_from_json(filename) -> dict:
     for g in groups_raw.values():
         people_list += g['people'] # For validation
         for person_id in g['people']:
-            group[person_id] = {'min': g['min_hours'], 'max': g['max_hours']}
+            group[person_id] = {'min': g['min_hours'], 'max': g['max_hours'], 'long_shifts': g['long_shifts']}
     
     if len(set(people_list)) != len(people_list):
         raise ValueError('One or more person_id is assigned to multiple groups.')

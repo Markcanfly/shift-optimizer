@@ -29,7 +29,8 @@ for min_workers in (1, 0):
             print(f'Unhappiness value: {solver.ObjectiveValue()} (lower is better) in {round(solver.WallTime(), 2)} seconds.')
         
         if args.outxlsx:
-            excel.write_to_file(args.outxlsx, stuples, preftuples)
+            assignments = solver.get_values()
+            excel.write_to_file(args.outxlsx, stuples, preftuples, assignments)
 
         break
     

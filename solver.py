@@ -371,6 +371,17 @@ class ShiftSolver(cp_model.CpSolver):
                     shift_dur_str = f'{get_printable_time(self.model.sdata[(d,s)][1])}-{get_printable_time(self.model.sdata[(d,s)][2])}'
                     txt += f'    Shift {s} {shift_dur_str}\n'
         return txt
+    
+    def get_values(self):
+        """Returns a dictionary with the solver values.
+        Returns:
+            assigned[day_id, shift_id, person_id] = True | False
+        """
+        assigned = dict()
+        for d,s,p in self.model.variables.keys():
+            assigned[d,s,p] = self.Value(self.model.variables[d,s,p])
+        
+        return assigned
 
 # TODO add employer reports to file
     # Extensive stats

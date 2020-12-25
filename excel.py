@@ -58,7 +58,10 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments):
             pref_ws.write(rowidx, colidx, pref[d,s,p])
     
     # Assignments
-    # TODO format true
+
+    # Formats
+    no_pref = workbook.add_format({'font_color':'#dedede'})
+
     assign_ws = workbook.add_worksheet(name="assignments")
     # Write to the sheet
     ## Headers
@@ -69,8 +72,10 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments):
         del c,b,e # We don't need them here
         assign_ws.write(rowidx, 0, str(d)+str(s)) # strID
         for colidx, p in enumerate(people, start=1):
-            assign_ws.write_boolean(rowidx, colidx, assignments[d,s,p])
-
+            if pref[d,s,p] is None:
+                assign_ws.write_boolean(rowidx, colidx, assignments[d,s,p], no_pref)
+            else:
+                assign_ws.write_boolean(rowidx, colidx, assignments[d,s,p])
     workbook.close()
     
 if __name__ == "__main__": # For testing only

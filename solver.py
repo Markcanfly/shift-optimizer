@@ -78,7 +78,7 @@ class ShiftModel(cp_model.CpModel):
             self.AddLinearConstraint(work_mins, self.gdata[p]['min']*60, self.gdata[p]['max']*60)
 
 
-    def AddLongShifts(self, n, length=300):
+    def AddLongShifts(self, length=300):
         """Make sure that everyone works at least n long shifts.
         Args:
             n: the number of shifts one needs to work
@@ -92,7 +92,7 @@ class ShiftModel(cp_model.CpModel):
 
         for p in self.people:
             self.Add(
-                sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) == n
+                sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) == self.gdata[p]['long_shifts']
             ) # A worker has to have exactly one long shift a week
 
     def AddLongShiftBreak(self, length=300):
@@ -287,7 +287,7 @@ class ShiftSolver(cp_model.CpSolver):
         self.preferences = preferences
         self.model = None
     
-    def Solve(self, min_workers, groups, n_long_shifts, pref_function=lambda x:x, timeout=10):
+    def Solve(self, min_workers, groups, pref_function=lambda x:x, timeout=10):
         """ 
         Args:
             min_workers: The minimum number of workers that have to be assigned to every shift
@@ -302,16 +302,14 @@ class ShiftSolver(cp_model.CpSolver):
         self.model = ShiftModel(self.shifts, self.preferences, groups)
         self.model.AddShiftCapacity(min=min_workers)
         self.model.MaximizeWelfare(pref_function)
-        if n_long_shifts != 0: self.model.AddLongShifts(n_long_shifts)
         self.parameters.max_time_in_seconds = timeout
         super().Solve(self.model)
         if super().StatusName() in ('FEASIBLE', 'OPTIMAL'):
             print(f'Solution found for the following parameters:')
             print(f'Minimum people on a shift: {min_workers}')
-            print(f'Minimum number long shifts assigned to everyone {n_long_shifts}')
             return True
         else:
-            print(f'No solution found for minimum of {min_workers} for each shift and minimum of {n_long_shifts} long shifts')
+            print(f'No solution found for minimum of {min_workers} for each shift.')
         return False
     
     def get_overview(self):

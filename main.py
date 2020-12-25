@@ -6,7 +6,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument('prefs', help='Name of the csv file containing the user-submitted preferences.', type=str)
 parser.add_argument('shifts', help='Name of the json file containing the shifts.', type=str)
 parser.add_argument('groups', help='Name of the json file containing the groups', type=str)
-parser.add_argument('long_shifts', help='The number of long shifts each person needs to have.', type=int)
 parser.add_argument('-t', '--timeout', help='The maximum time in seconds that the solver can take to find an optimal solution.', default=10, type=int)
 parser.add_argument('-v', '--verbose', help='Print some extra data about the solution.', action='store_true')
 # TODO outfiles
@@ -17,7 +16,6 @@ for min_workers in (1, 0):
     if solver.Solve(
         min_workers=min_workers, 
         groups=data.groups_from_json(args.groups),
-        n_long_shifts=args.long_shifts,
         timeout=args.timeout
                     ):
         print(solver.get_overview())

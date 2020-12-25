@@ -25,8 +25,8 @@ class ShiftModel(cp_model.CpModel):
         self.people = ShiftModel.get_people(preferences)
         self.daily_shifts = ShiftModel.get_daily_shifts(shiftlist)
         self.sdata = ShiftModel.get_shiftdata(shiftlist)
-        self.pdata = ShiftModel.get_prefdata(preferences, shiftlist)
-        self.gdata = ShiftModel.get_groupdata(groups, preferences)
+        self.prefdata = ShiftModel.get_prefdata(preferences, shiftlist)
+        self.pdata = ShiftModel.get_groupdata(groups, preferences)
 
         self.variables = {}
         for d, shifts in self.daily_shifts.items():
@@ -46,7 +46,7 @@ class ShiftModel(cp_model.CpModel):
         that they signed up for.
         """
         for (d, s, p) in self.variables.keys():
-            if (d,s,p) not in self.pdata:
+            if (d,s,p) not in self.prefdata:
                 self.Add(self.variables[(d, s, p)] == False)
 
     def AddShiftCapacity(self, min):
@@ -75,7 +75,7 @@ class ShiftModel(cp_model.CpModel):
             for d, shifts in self.daily_shifts.items():
                 for s in shifts:
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
-            self.AddLinearConstraint(work_mins, self.gdata[p]['min']*60, self.gdata[p]['max']*60)
+            self.AddLinearConstraint(work_mins, self.pdata[p]['min']*60, self.pdata[p]['max']*60)
 
 
     def AddLongShifts(self, length=300):
@@ -91,9 +91,11 @@ class ShiftModel(cp_model.CpModel):
                 long_shifts.add((d, s))
 
         for p in self.people:
-            self.Add(
-                sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) == self.gdata[p]['long_shifts']
-            ) # A worker has to have exactly one long shift a week
+            min_long = self.pdata[p]['min_long_shifts']
+            if min_long > 0:
+                self.Add(
+                    sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) > min_long
+                )
 
     def AddLongShiftBreak(self, length=300):
         """Make sure that if you work a long shift, you're not gonna work
@@ -155,7 +157,7 @@ class ShiftModel(cp_model.CpModel):
         """
         pref = dict()
         for (d,s,p) in self.variables:
-            pref[(d,s,p)] = self.pdata[(d,s,p)] if (d,s,p) in self.pdata else 0
+            pref[(d,s,p)] = self.prefdata[(d,s,p)] if (d,s,p) in self.prefdata else 0
 
         self.Minimize(
             sum([works*fun(pref[works_id]) for works_id, works in self.variables.items()])
@@ -273,7 +275,8 @@ class ShiftModel(cp_model.CpModel):
         for p_groupvals in groups.values():
             assert isinstance(p_groupvals['min'], int) and isinstance(p_groupvals['max'], int)
             assert p_groupvals['min'] < p_groupvals['max']
-            assert isinstance(p_groupvals['long_shifts'], int)
+            assert isinstance(p_groupvals['min_long_shifts'], int)
+            assert isinstance(p_groupvals['only_long_shifts'], bool)
         return groups
 
 class ShiftSolver(cp_model.CpSolver):
@@ -287,7 +290,7 @@ class ShiftSolver(cp_model.CpSolver):
         self.preferences = preferences
         self.model = None
     
-    def Solve(self, min_workers, groups, pref_function=lambda x:x, timeout=10):
+    def Solve(self, min_workers, personal_reqs, pref_function=lambda x:x, timeout=10):
         """ 
         Args:
             min_workers: The minimum number of workers that have to be assigned to every shift
@@ -299,7 +302,7 @@ class ShiftSolver(cp_model.CpSolver):
             Boolean: whether the solver found a solution.
         """
         
-        self.model = ShiftModel(self.shifts, self.preferences, groups)
+        self.model = ShiftModel(self.shifts, self.preferences, personal_reqs)
         self.model.AddShiftCapacity(min=min_workers)
         self.model.MaximizeWelfare(pref_function)
         self.parameters.max_time_in_seconds = timeout
@@ -333,7 +336,7 @@ class ShiftSolver(cp_model.CpSolver):
                     if self.Value(self.model.variables[(d,s,p)]):
                         txt += f'        {p}'
                         if with_preferences:
-                            txt += f'preference {self.model.pdata[(d,s,p)]}'
+                            txt += f'preference {self.model.prefdata[(d,s,p)]}'
                         txt += '\n'
             txt += '\n'
         if with_preferences:

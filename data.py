@@ -1,4 +1,4 @@
-"""Static data definition for the flat_shifts."""
+"""Handling of raw data from files"""
 import json
 import csv
 # TODO Handle file errors
@@ -49,7 +49,7 @@ def shifts_from_json(filename="shifts.json"):
     
     return flat_shifts
 
-def groups_from_json(filename) -> dict:
+def personal_reqs_from_groups(filename) -> dict:
     """Read the group data from a json,
     and return it in a solver-compatible format.
     Make sure it's valid.
@@ -61,10 +61,16 @@ def groups_from_json(filename) -> dict:
             ],
             "min_hours": 25,
             "max_hours": 35,
-            "long_shifts": 1
+            "min_long_shifts":1,
+            "only_long_shifts": true
         },...
     Returns:
-        group: group[person_id] = {'min': n1, 'max': n2, 'long_shifts': n3} dict
+        group: group[person_id] = {
+            'min': n1, 
+            'max': n2, 
+            'min_long_shifts': n3, 
+            'only_long_shifts': bool1
+            } dict
     """
     
     with open(filename, 'r', encoding='utf8') as jsonfile:
@@ -76,7 +82,12 @@ def groups_from_json(filename) -> dict:
     for g in groups_raw.values():
         people_list += g['people'] # For validation
         for person_id in g['people']:
-            group[person_id] = {'min': g['min_hours'], 'max': g['max_hours'], 'long_shifts': g['long_shifts']}
+            group[person_id] = {
+                'min': g['min_hours'], 
+                'max': g['max_hours'], 
+                'min_long_shifts': g['min_long_shifts'],
+                'only_long_shifts': g['only_long_shifts']
+                }
     
     if len(set(people_list)) != len(people_list):
         raise ValueError('One or more person_id is assigned to multiple groups.')

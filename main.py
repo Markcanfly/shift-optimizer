@@ -15,7 +15,7 @@ solver = ShiftSolver(shifts=data.shifts_from_json(args.shifts), preferences=data
 for min_workers in (1, 0): 
     if solver.Solve(
         min_workers=min_workers, 
-        groups=data.groups_from_json(args.groups),
+        personal_reqs=data.personal_reqs_from_groups(args.groups),
         timeout=args.timeout
                     ):
         print(solver.get_overview())

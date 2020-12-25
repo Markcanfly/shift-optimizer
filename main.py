@@ -8,6 +8,7 @@ parser.add_argument('shifts', help='Name of the json file containing the shifts.
 parser.add_argument('hours', help='Name of the json file containing the groups', type=str)
 parser.add_argument('long_shifts', help='The number of long shifts each person needs to have.', type=int)
 parser.add_argument('-t', '--timeout', help='The maximum time in seconds that the solver can take to find an optimal solution.', default=10, type=int)
+parser.add_argument('-v', '--verbose', help='Print some extra data about the solution.', action='store_true')
 # TODO outfiles
 args = parser.parse_args()
 
@@ -20,5 +21,7 @@ for min_workers in (1, 0):
         timeout=args.timeout
                     ):
         print(solver.get_overview())
+        if args.verbose:
+            print(f'Unhappiness value: {solver.ObjectiveValue()} (lower is better) in {round(solver.WallTime(), 2)} seconds.')
         break
     

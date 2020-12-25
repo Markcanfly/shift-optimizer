@@ -26,7 +26,7 @@ class ShiftModel(cp_model.CpModel):
         self.daily_shifts = ShiftModel.get_daily_shifts(shiftlist)
         self.sdata = ShiftModel.get_shiftdata(shiftlist)
         self.pdata = ShiftModel.get_prefdata(preferences, shiftlist)
-        self.hdata = ShiftModel.get_hoursdata(groups, preferences)
+        self.gdata = ShiftModel.get_groupdata(groups, preferences)
 
         self.variables = {}
         for d, shifts in self.daily_shifts.items():
@@ -75,7 +75,7 @@ class ShiftModel(cp_model.CpModel):
             for d, shifts in self.daily_shifts.items():
                 for s in shifts:
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
-            self.AddLinearConstraint(work_mins, self.hdata[p]['min']*60, self.hdata[p]['max']*60)
+            self.AddLinearConstraint(work_mins, self.gdata[p]['min']*60, self.gdata[p]['max']*60)
 
 
     def AddLongShifts(self, n, length=300):
@@ -259,21 +259,22 @@ class ShiftModel(cp_model.CpModel):
         return pdata
 
     @staticmethod
-    def get_hoursdata(hours, preferences):
-        """Create valid personal hour requirement dictionary.
+    def get_groupdata(groups, preferences):
+        """Create valid personal group requirement dictionary.
         Make sure that there are no person_id -s in preferences that don't have a min-max value in hours.
         Make sure that the format is correct
         Args:
-            hours: hours[person_id] = (min, max) structured dict
+            group: group[person_id] = {'min': n1, 'max': n2, 'long_shifts': n3} dict
             preferences: list of (day_id, shift_id, person_id, pref_score) tuples to validate p_ids against
         """
-        person_ids_not_in_hours = set([pref[2] for pref in preferences]).difference(hours.keys())
-        if len(person_ids_not_in_hours) > 0:
-            raise ValueError(f"Some names were not found in the hours dictionary: {person_ids_not_in_hours}")
-        for p_hours in hours.values():
-            assert isinstance(p_hours['min'], int) and isinstance(p_hours['max'], int)
-            assert p_hours['min'] < p_hours['max']
-        return hours
+        person_ids_not_in_groups = set([pref[2] for pref in preferences]).difference(groups.keys())
+        if len(person_ids_not_in_groups) > 0:
+            raise ValueError(f"Some names were not found in the groups dictionary: {person_ids_not_in_groups}")
+        for p_groupvals in groups.values():
+            assert isinstance(p_groupvals['min'], int) and isinstance(p_groupvals['max'], int)
+            assert p_groupvals['min'] < p_groupvals['max']
+            assert isinstance(p_groupvals['long_shift'], int)
+        return groups
 
 class ShiftSolver(cp_model.CpSolver):
     def __init__(self, shifts, preferences):

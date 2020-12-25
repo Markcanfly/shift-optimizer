@@ -9,8 +9,7 @@ parser.add_argument('shifts', help='Name of the json file containing the shifts.
 parser.add_argument('groups', help='Name of the json file containing the groups', type=str)
 parser.add_argument('-t', '--timeout', help='The maximum time in seconds that the solver can take to find an optimal solution.', default=10, type=int)
 parser.add_argument('-v', '--verbose', help='Print some extra data about the solution.', action='store_true')
-parser.add_argument('-o', dest='outxlsx', help='Output to an excel file.', type=str)
-# TODO outfiles
+parser.add_argument('-x', dest='outxlsx', help='Output to an excel file.', type=str)
 args = parser.parse_args()
 
 # Collect data from files

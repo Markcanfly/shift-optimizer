@@ -96,6 +96,11 @@ class ShiftModel(cp_model.CpModel):
                 self.Add(
                     sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) > min_long
                 )
+            if self.pdata[p]['only_long_shifts']:
+                non_long_shifts = set(self.sdata.keys()).difference(long_shifts)
+                for d, s in non_long_shifts:
+                    self.Add(self.variables[d,s,p] == False)
+
 
     def AddLongShiftBreak(self, length=300):
         """Make sure that if you work a long shift, you're not gonna work

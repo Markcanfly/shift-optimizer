@@ -101,21 +101,51 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments):
     ## Add conditional formatting to this cell,
     ## so that it's:
     ##      green,  when the shift is full
+    shift_full =      workbook.add_format({'bg_color':'#a6ff9e'})
     ##      orange, when the shift is below capacity
+    shift_below_cap = workbook.add_format({'bg_color': '#ffc670'})
     ##      red,    when the shift is over capacity
+    shift_over_cap =  workbook.add_format({'bg_color': '#ff7a70'})
     for rowidx, (d,s,c,b,e) in enumerate(shift_tuples, start=1):
         del c,b,e # We don't need them here, because c has to be dynamic
         # Current shift state
+        cap_format = workbook.add_format({'left':1})
         assign_ws.write_formula(
             rowidx, len(people)+1, 
-            f'=COUNTIF({celln(rowidx, 1)}:{celln(rowidx,len(people))}, TRUE)')
+            f'=COUNTIF({celln(rowidx, 1)}:{celln(rowidx,len(people))}, TRUE)',
+            cap_format)
         # Capacity
         assign_ws.write_formula(
             rowidx, len(people)+2,
             f'=shifts!C{rowidx+1}')
 
-        # TODO Conditional formatting
-        
+        #region Conditional formatting the n_people on shift
+        capacity_col_row = celln(rowidx, len(people)+2)
+        # Full
+        assign_ws.conditional_format(celln(rowidx, len(people)+1),
+        {
+            'type':'cell',
+            'criteria':'==',
+            'value': capacity_col_row,
+            'format': shift_full
+        })
+        # Below capacity
+        assign_ws.conditional_format(celln(rowidx, len(people)+1),
+        {
+            'type':'cell',
+            'criteria':'<',
+            'value': capacity_col_row,
+            'format': shift_below_cap
+        })
+        # Full
+        assign_ws.conditional_format(celln(rowidx, len(people)+1),
+        {
+            'type':'cell',
+            'criteria':'>',
+            'value': capacity_col_row,
+            'format': shift_over_cap
+        })
+        #endregion  
 
     # Add conditional to highlight actual applications
     applied_shift_format = workbook.add_format({

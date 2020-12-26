@@ -30,7 +30,7 @@ def get_prefcolor(n, max_n):
 def get_people(preferences):
     return list(set([p[2] for p in preferences]))
 
-def write_to_file(filename, shift_tuples, pref_tuples, assignments):
+def write_to_file(filename, shift_tuples, pref_tuples, assignments, personal_reqs):
     workbook = xlsxwriter.Workbook(filename)
     shifts_ws = workbook.add_worksheet(name="shifts")
     time_f = workbook.add_format({'num_format': 'hh:mm'})
@@ -73,6 +73,18 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments):
         for colidx, p in enumerate(people, start=1):
             pref_ws.write(rowidx, colidx, pref[d,s,p])
     
+    # Personal requirements
+    pers_ws = workbook.add_worksheet(name="personal_reqs")
+    ## Headers
+    for idx, txt in enumerate(["person","Min. hours", "Max. hours","Min. long shits","Only long shifts"]):
+        pers_ws.write(0, idx, txt)
+    for rowidx, p in enumerate(people, start=1):
+        pers_ws.write(rowidx, 0, p)
+        pers_ws.write_number(rowidx, 1, personal_reqs[p]['min'])
+        pers_ws.write_number(rowidx, 2, personal_reqs[p]['max'])
+        pers_ws.write_number(rowidx, 3, personal_reqs[p]['min_long_shifts'])
+        pers_ws.write_boolean(rowidx, 4, personal_reqs[p]['only_long_shifts'])
+
     # Assignments
 
     # Formats

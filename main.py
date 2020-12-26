@@ -15,12 +15,13 @@ args = parser.parse_args()
 # Collect data from files
 stuples = data.shifts_from_json(args.shifts)
 preftuples = data.preferences_from_csv(args.prefs)
+personal_reqs = data.personal_reqs_from_groups(args.groups)
 
 solver = ShiftSolver(shifts=stuples, preferences=preftuples)
 for min_workers in (1, 0): 
     if solver.Solve(
         min_workers=min_workers, 
-        personal_reqs=data.personal_reqs_from_groups(args.groups),
+        personal_reqs=personal_reqs,
         timeout=args.timeout
                     ):
         print(solver.get_overview())
@@ -29,7 +30,7 @@ for min_workers in (1, 0):
         
         if args.outxlsx:
             assignments = solver.get_values()
-            excel.write_to_file(args.outxlsx, stuples, preftuples, assignments)
+            excel.write_to_file(args.outxlsx, stuples, preftuples, assignments, personal_reqs)
 
         break
     

@@ -174,9 +174,19 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments, personal_req
             f'MATCH({celln(0,person_col, row_abs=True)},personal_reqs!{celln(1,0, row_abs=True, col_abs=True)}:{celln(len(people), 0, row_abs=True, col_abs=True)},0)'
             +f',{var_col})')
 
-    # TODO row descriptors in front
     # TODO minor formatting here
-    
+
+    # Row headers
+    for row_idx, txt in enumerate(["Min. hours", 
+                         "Actual hours", 
+                         "Max. hours", 
+                         "Long shifts taken", 
+                         "Min. long shifts", 
+                         "Long shifts only"
+                            ]):
+        r0 = len(shift_tuples)+1
+        assign_ws.write(r0+row_idx, 0, txt)
+
     for col_idx, p in enumerate(people, start=1):
         r0 = len(shift_tuples)+1 # Start after the last shift
         min_hours_formula = preq_formula(col_idx, 2)

@@ -159,6 +159,38 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments, personal_req
         })
         #endregion  
 
+    # Add personal requirement indicator
+    ## For each person, under their last shift, indicate their:
+    ## Minimum hours (from the personal_reqs sheet)
+    ## The actual number of hours they are taking
+    ## Maximum hours (from the personal_reqs sheet)
+    ## Number of long shifts taken
+    ## Minimum number of long shifts (from the personal_reqs sheet)
+    ## Whether they only take long shifts (from the personal_reqs sheet)
+
+    # Horrifying excel formula #1
+    def preq_formula(person_col, var_col):
+            return (f'=INDEX(personal_reqs!{celln(1,0, row_abs=True, col_abs=True)}:{celln(len(people),4, row_abs=True, col_abs=True)},'+
+            f'MATCH({celln(0,person_col, row_abs=True)},personal_reqs!{celln(1,0, row_abs=True, col_abs=True)}:{celln(len(people), 0, row_abs=True, col_abs=True)},0)'
+            +f',{var_col})')
+
+    # TODO row descriptors in front
+    # TODO minor formatting here
+    
+    for col_idx, p in enumerate(people, start=1):
+        r0 = len(shift_tuples)+1 # Start after the last shift
+        min_hours_formula = preq_formula(col_idx, 2)
+        assign_ws.write_formula(r0, col_idx, min_hours_formula)
+        # TODO formula to calculate actual number of hours
+        max_hours_formula = preq_formula(col_idx, 3)
+        assign_ws.write_formula(r0+2, col_idx, max_hours_formula)
+        # TODO formula to calculate number of long shifts
+        min_long_shifts_formula = preq_formula(col_idx, 4)
+        assign_ws.write_formula(r0+4, col_idx, min_long_shifts_formula)
+        long_shifts_only_formula = preq_formula(col_idx, 5)
+        assign_ws.write_formula(r0+5, col_idx, long_shifts_only_formula)
+
+
     # Add conditional to highlight actual applications
     applied_shift_format = workbook.add_format({
         'bold': True,

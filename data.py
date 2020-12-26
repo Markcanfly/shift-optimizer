@@ -65,7 +65,7 @@ def personal_reqs_from_groups(filename) -> dict:
             "only_long_shifts": true
         },...
     Returns:
-        group: group[person_id] = {
+        preqs: preqs[person_id] = {
             'min': n1, 
             'max': n2, 
             'min_long_shifts': n3, 
@@ -76,13 +76,13 @@ def personal_reqs_from_groups(filename) -> dict:
     with open(filename, 'r', encoding='utf8') as jsonfile:
         groups_raw = json.load(jsonfile)
     
-    group = dict()
+    preqs = dict()
 
     people_list = [] # For validating that one name is in one group only
     for g in groups_raw.values():
         people_list += g['people'] # For validation
         for person_id in g['people']:
-            group[person_id] = {
+            preqs[person_id] = {
                 'min': g['min_hours'], 
                 'max': g['max_hours'], 
                 'min_long_shifts': g['min_long_shifts'],
@@ -92,7 +92,7 @@ def personal_reqs_from_groups(filename) -> dict:
     if len(set(people_list)) != len(people_list):
         raise ValueError('One or more person_id is assigned to multiple groups.')
     
-    return group
+    return preqs
         
 def hours_for_everyone(preferences, min_hours, max_hours) -> dict:
     """Create an hour specification for all people in the preferences,

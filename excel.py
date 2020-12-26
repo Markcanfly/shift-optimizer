@@ -38,7 +38,7 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments, personal_req
     # Shifts
     
     ## Headers
-    for idx, txt in enumerate(["Day", "ShiftID", "Capacity", "Begin", "End", "strID"]):
+    for idx, txt in enumerate(["Day", "ShiftID", "Capacity", "Begin", "End", "strID", "length in hours"]):
         shifts_ws.write(0, idx, txt)
 
     for rowidx, shift_tuple in enumerate(shift_tuples, start=1):
@@ -48,7 +48,7 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments, personal_req
         shifts_ws.write(rowidx, 3, shift_tuple[3]/(24*60), time_f) # Begin time
         shifts_ws.write(rowidx, 4, shift_tuple[4]/(24*60), time_f) # End time
         shifts_ws.write(rowidx, 5, str(shift_tuple[0])+str(shift_tuple[1])) # strID - should be unique
-    
+        shifts_ws.write_formula(rowidx, 6, f'=({celln(rowidx, 4, col_abs=True)}-{celln(rowidx, 3, col_abs=True)})*24') # shift length
     # Preferences
     ## Generate pref[(day_id, shift_id, person_id)] = pref_score or None
     pref = dict()

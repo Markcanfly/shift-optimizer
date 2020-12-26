@@ -175,6 +175,9 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments, personal_req
             f'MATCH({celln(0,person_col, row_abs=True)},personal_reqs!{celln(1,0, row_abs=True, col_abs=True)}:{celln(len(people), 0, row_abs=True, col_abs=True)},0)'
             +f',{var_col})')
 
+    def workhours_formula(person_col):
+            return (f'=SUMIF({celln(1,person_col, row_abs=True)}:{celln(len(shift_tuples), person_col, row_abs=True)},TRUE,shifts!{celln(1,6, row_abs=True, col_abs=True)}:{celln(len(shift_tuples),6, row_abs=True, col_abs=True)})')
+
     # TODO minor formatting here
 
     # Row headers
@@ -192,7 +195,7 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments, personal_req
         r0 = len(shift_tuples)+1 # Start after the last shift
         min_hours_formula = preq_formula(col_idx, 2)
         assign_ws.write_formula(r0, col_idx, min_hours_formula)
-        # TODO formula to calculate actual number of hours
+        assign_ws.write_formula(r0+1, col_idx, workhours_formula(col_idx))
         max_hours_formula = preq_formula(col_idx, 3)
         assign_ws.write_formula(r0+2, col_idx, max_hours_formula)
         # TODO formula to calculate number of long shifts

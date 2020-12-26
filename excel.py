@@ -102,11 +102,11 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments, personal_req
         assign_ws.write(rowidx, 0, str(d)+str(s)) # strID
         for colidx, p in enumerate(people, start=1):
             if pref[d,s,p] is None:
-                assign_ws.write_boolean(rowidx, colidx, assignments[d,s,p], no_pref)
+                assign_ws.write(rowidx, colidx, assignments[d,s,p], no_pref)
             else:
                 pref_color = get_prefcolor(pref[d,s,p], max([pref[d,s,p] for p in people if pref[d,s,p] is not None]))
                 pref_format = workbook.add_format({'bg_color':pref_color})
-                assign_ws.write_boolean(rowidx, colidx, assignments[d,s,p], pref_format)
+                assign_ws.write(rowidx, colidx, assignments[d,s,p], pref_format)
     
     # Add shift capacity condition indicator
     ## Add a formula to the end of each row,
@@ -125,7 +125,7 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments, personal_req
         cap_format = workbook.add_format({'left':1})
         assign_ws.write_formula(
             rowidx, len(people)+1, 
-            f'=COUNTIF({celln(rowidx, 1)}:{celln(rowidx,len(people))}, TRUE)',
+            f'=COUNTIF({celln(rowidx, 1)}:{celln(rowidx,len(people))}, 1)',
             cap_format)
         # Capacity
         assign_ws.write_formula(
@@ -207,16 +207,13 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments, personal_req
         'bold': True,
         'border': 1
     })
-    assign_ws.conditional_format(0,0, len(shift_tuples)+1, len(people)+1,
+    assign_ws.conditional_format(0,0, len(shift_tuples)+1, len(people),
         {
             'type': 'cell',
             'criteria': '==',
-            'value': True,
+            'value': 1,
             'format': applied_shift_format
         }
     )
 
     workbook.close()
-    
-if __name__ == "__main__": # For testing only
-    write_to_file("beosztas.xlsx", data.shifts_from_json("psr.json"), data.preferences_from_csv("shift-optimize-PSRJanuar04-10.csv"))

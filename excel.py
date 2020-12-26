@@ -63,6 +63,7 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments, personal_req
     
     # Write to the sheet
     pref_ws = workbook.add_worksheet(name="preferences")
+    pref_ws.protect()
     ## Headers
     for idx, txt in enumerate(["strID"] + people):
         pref_ws.write(0, idx, txt)

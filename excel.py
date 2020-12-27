@@ -247,4 +247,33 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments, personal_req
     master.autofilter(0,4,0,4)
     master.filter_column(4, "Works == TRUE")
 
+    # Worker view
+    worker = workbook.add_worksheet(name='padawan-view')
+    for col_idx, txt in enumerate([
+                        "Person",
+                        "strID", 
+                        "Begin", 
+                        "End",  
+                        "Works"
+                            ]):
+        worker.write(0, col_idx, txt) # TODO hide works columns
+    for pcount, person in enumerate(people):
+        for scount, (d,s,c,b,e) in enumerate(shift_tuples):
+            del c
+            r_index = pcount*len(shift_tuples)+scount + 1
+            worker.write(r_index, 0, person)
+            worker.write(r_index, 1, str(d)+str(s))
+            worker.write(r_index, 2, b/(24*60), time_f)
+            worker.write(r_index, 3, e/(24*60), time_f)
+            assignments_range = f'assignments!{celln(1,1)}:{celln(len(shift_tuples), len(people))}'
+            shiftname_addr = f'{celln(r_index, 1)}'
+            shiftids_range = f'assignments!{celln(1,0)}:{celln(len(shift_tuples),0)}'
+            pname_addr = f'{celln(r_index, 0)}'
+            names_range = f'assignments!{celln(0,1)}:{celln(0, len(people))}'
+            worker.write_formula(r_index, 4, f'=INDEX({assignments_range},MATCH({shiftname_addr},{shiftids_range},0),MATCH({pname_addr},{names_range},0))')
+
+    worker.autofilter(0,0,0,4) # For the your name
+    worker.filter_column(4, "Works == TRUE")
+
+
     workbook.close()

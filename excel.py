@@ -134,11 +134,11 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
     ## Add conditional formatting to this cell,
     ## so that it's:
     ##      green,  when the shift is full
-    shift_full =      workbook.add_format({'bg_color':'#a6ff9e'})
+    ok_format =      workbook.add_format({'bg_color':'#a6ff9e'})
     ##      orange, when the shift is below capacity
-    shift_below_cap = workbook.add_format({'bg_color': '#ffc670'})
+    medium_format = workbook.add_format({'bg_color': '#ffc670'})
     ##      red,    when the shift is over capacity
-    shift_over_cap =  workbook.add_format({'bg_color': '#ff7a70'})
+    bad_format =  workbook.add_format({'bg_color': '#ff7a70'})
     for rowidx, (d,s) in enumerate(shifts.keys(), start=1):
         # Current shift state
         cap_format = workbook.add_format({'left':1})
@@ -163,7 +163,7 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
             'type':'cell',
             'criteria':'==',
             'value': capacity_col_row,
-            'format': shift_full
+            'format': ok_format
         })
         # Below capacity
         assign_ws.conditional_format(celln(rowidx, n_people+1),
@@ -171,7 +171,7 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
             'type':'cell',
             'criteria':'<',
             'value': capacity_col_row,
-            'format': shift_below_cap
+            'format': medium_format
         })
         # Full
         assign_ws.conditional_format(celln(rowidx, n_people+1),
@@ -179,7 +179,7 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
             'type':'cell',
             'criteria':'>',
             'value': capacity_col_row,
-            'format': shift_over_cap
+            'format': bad_format
         })
         #endregion  
 
@@ -232,20 +232,29 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
         assign_ws.write_formula(r0+5, col_idx, long_shifts_only_formula)
         assign_ws.write_formula(r0+6, col_idx, pref_score_formula(col_idx))
 
+        # Add conditional to show if hours is withing range
+        assign_ws.conditional_format(celln(r0+1,col_idx),
+        {
+            'type':'cell',
+            'criteria':'between',
+            'minimum': celln(r0,col_idx),
+            'maximum': celln(r0+2,col_idx),
+            'format': ok_format
+        })
+        assign_ws.conditional_format(celln(r0+1,col_idx),
+        {
+            'type':'cell',
+            'criteria':'not between',
+            'minimum': celln(r0,col_idx),
+            'maximum': celln(r0+2,col_idx),
+            'format': bad_format
+        })
 
     # Add conditional to highlight actual applications
     applied_shift_format = workbook.add_format({
         'bold': True,
         'border': 1
     })
-    assign_ws.conditional_format(0,0, n_shifts+1, n_people+1,
-        {
-            'type': 'cell',
-            'criteria': '==',
-            'value': True,
-            'format': applied_shift_format
-        }
-    )
 
     # Master view
     master = workbook.add_worksheet(name='sensei-view')

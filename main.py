@@ -15,11 +15,11 @@ parser.add_argument('-x', dest='outxlsx', help='Output to an excel file.', type=
 args = parser.parse_args()
 
 # Collect data from files
-stuples = data.shifts_from_json(args.shifts)
-preftuples = data.preferences_from_csv(args.prefs, args.shifts)
+shifts = data.shifts_from_json(args.shifts)
+prefs = data.preferences_from_csv(args.prefs, args.shifts)
 personal_reqs = data.personal_reqs_from_groups(args.groups)
 
-solver = ShiftSolver(shifts=stuples, preferences=preftuples)
+solver = ShiftSolver(shifts=shifts, preferences=prefs)
 for min_workers in (1, 0): 
     if solver.Solve(
         min_workers=min_workers, 
@@ -35,7 +35,7 @@ for min_workers in (1, 0):
         
         if args.outxlsx:
             assignments = solver.get_values()
-            excel.write_to_file(args.outxlsx, stuples, preftuples, assignments, personal_reqs)
+            excel.write_to_file(args.outxlsx, shifts, prefs, assignments, personal_reqs)
 
         break
     

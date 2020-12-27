@@ -30,7 +30,7 @@ class ShiftModel(cp_model.CpModel):
         self.daily_shifts = ShiftModel.get_daily_shifts(shiftlist)
         self.sdata = ShiftModel.get_shiftdata(shiftlist)
         self.prefdata = ShiftModel.get_prefdata(preferences, self.sdata.keys(), self.people)
-        self.pdata = ShiftModel.get_groupdata(groups, preferences)
+        self.pdata = ShiftModel.get_personal_requirements(groups, self.people)
 
         self.variables = {}
         for d, shifts in self.daily_shifts.items():
@@ -262,29 +262,29 @@ class ShiftModel(cp_model.CpModel):
         return pdata
 
     @staticmethod
-    def get_groupdata(groups, preferences):
-        """Create valid personal group requirement dictionary.
+    def get_personal_requirements(personal_requirements, people):
+        """Create valid personal personal requirement dictionary.
         Make sure that there are no person_id -s in preferences that don't have a min-max value in hours.
         Make sure that the format is correct
         Args:
-            group: group[person_id] = {'min': n1, 'max': n2, 'long_shifts': n3} dict
-            preferences: list of (day_id, shift_id, person_id, pref_score) tuples to validate p_ids against
+            personal_requirements: preqs[person_id] = {'min': n1, 'max': n2, 'long_shifts': n3} dict
+            people: a set of people_ids to validate against
         """
-        person_ids_not_in_groups = set([pref[2] for pref in preferences]).difference(groups.keys())
+        person_ids_not_in_groups = set(people).difference(personal_requirements.keys())
         if len(person_ids_not_in_groups) > 0:
             raise ValueError(f"Some names were not found in the groups dictionary: {person_ids_not_in_groups}")
-        for p_groupvals in groups.values():
+        for p_groupvals in personal_requirements.values():
             assert isinstance(p_groupvals['min'], int) and isinstance(p_groupvals['max'], int)
             assert p_groupvals['min'] < p_groupvals['max']
             assert isinstance(p_groupvals['min_long_shifts'], int)
             assert isinstance(p_groupvals['only_long_shifts'], bool)
-        return groups
+        return personal_requirements
 
 class ShiftSolver(cp_model.CpSolver):
     def __init__(self, shifts, preferences):
         """Args:
             shifts: list of (day_id, shift_id, capacity, from, to) tuples where
-            preferences: list of (day_id, shift_id, person_id, pref_score) tuples
+            dict of pref[day_id,shift_id,person_id] = pref_score
         """
         super().__init__()
         self.shifts = shifts

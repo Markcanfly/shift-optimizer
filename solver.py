@@ -17,15 +17,19 @@ class ShiftModel(cp_model.CpModel):
     """
     def __init__(self, shiftlist, preferences, groups):
         """Args:
-            shifts: list of (day_id, shift_id, capacity, from, to) tuples where
-            preferences: list of (day_id, shift_id, person_id, pref_score) tuples
+            shifts: dict of sdata[day_id, shift_id] = {
+                'capacity': 2,
+                'begin': 525,
+                'end': 960
+            }
+            preferences: dict of pref[day_id,shift_id,person_id] = pref_score
             group: group[person_id] = {'min': n1, 'max': n2, 'long_shifts': n3} dict
         """
         super().__init__()
         self.people = ShiftModel.get_people(preferences)
         self.daily_shifts = ShiftModel.get_daily_shifts(shiftlist)
         self.sdata = ShiftModel.get_shiftdata(shiftlist)
-        self.prefdata = ShiftModel.get_prefdata(preferences, shiftlist)
+        self.prefdata = ShiftModel.get_prefdata(preferences, self.sdata.keys(), self.people)
         self.pdata = ShiftModel.get_groupdata(groups, preferences)
 
         self.variables = {}
@@ -165,7 +169,7 @@ class ShiftModel(cp_model.CpModel):
             pref[(d,s,p)] = self.prefdata[(d,s,p)] if (d,s,p) in self.prefdata else 0
 
         self.Minimize(
-            sum([works*fun(pref[works_id]) for works_id, works in self.variables.items()])
+            sum([works*fun(pref[works_id]) for works_id, works in self.variables.items() if pref[works_id] is not None])
         )
 
     # Helper methods
@@ -182,18 +186,24 @@ class ShiftModel(cp_model.CpModel):
         return first_last
 
     @staticmethod
-    def get_daily_shifts(shiftlist):
+    def get_daily_shifts(shifts):
         """Extract a dictionary of shift ids for each day. 
         Args:
-            shiftlist: list of (day_id, shift_id, capacity, from, to) tuples
+            shifts: dict of sdata[day_id, shift_id] = {
+                'capacity': 2,
+                'begin': 525,
+                'end': 960
+            }
         Returns:
             daily_shifts['day'] = list(shift1_id, shift2_id...)    
         """
         daily_shifts = dict()
-        for sraw in shiftlist:
-            daily_shifts[sraw[0]] = set() # Initialize with empty sets
-        for sraw in shiftlist:
-            daily_shifts[sraw[0]].add(sraw[1])
+
+        for d,s in shifts.keys():
+            if d not in daily_shifts.keys():
+                daily_shifts[d] = [s]
+            else:
+                daily_shifts[d].append(s)
 
         return daily_shifts
 
@@ -201,67 +211,53 @@ class ShiftModel(cp_model.CpModel):
     def get_people(preferences):
         """Extract the set of people from a raw shift data list
         Args:
-            preferences: list of (day_id, shift_id, person_id, pref_score) tuples
+            preferences: dict of pref[day_id,shift_id,person_id] = pref_score
         Returns:
             set of people ids
         """
         people = set()
-        for pref in preferences:
-            people.add(pref[2])
+        for d,s,p in preferences.keys():
+            del d,s
+            people.add(p)
         return people
 
     @staticmethod
-    def get_days(shiftlist):
-        """Extract the set of days from a shiftlist
-        Args:
-            shiftlist: list of (day_id, shift_id, capacity, from, to) tuples
-        Returns:
-            set of day ids
-        """
-        days = set()
-        for sraw in shiftlist:
-            days.add(sraw[0])
-        return days
-
-    @staticmethod
-    def get_shifts(shiftlist):
-        """Extract the set of shift ids from a shiftlist
-        Args:
-            shiftlist: list of (day_id, shift_id, capacity, from, to) tuples
-        Returns:
-            set of shift ids
-        """
-        shifts = set()
-        for shift in shiftlist:
-            shifts.add(shift[1])
-        return shifts
-    
-    @staticmethod
-    def get_shiftdata(shiftlist):
+    def get_shiftdata(shifts):
         """Build a dictionary with the shift data from a shift list.
         Args:
-            shiftlist: list of (day_id, shift_id, from, to, capacity) tuples
+            shifts: dict of sdata[day_id, shift_id] = {
+                'capacity': 2,
+                'begin': 525,
+                'end': 960
+            }
         Returns:
             dictionary of sdata[(day_id, shift_id)] = (capacity, from, to)
         """
-        shiftdata = dict()
-        for sraw in shiftlist:
-            shiftdata[(sraw[0], sraw[1])] = tuple(sraw[2:])
-        return shiftdata
+        sdata = dict()
+        for (d,s), data in shifts.items():
+            sdata[d, s] = (data['capacity'], data['begin'], data['end'])
+        
+        return sdata
 
     @staticmethod
-    def get_prefdata(preferences, shiftlist):
+    def get_prefdata(preferences, day_shift_combinations, people):
         """Build a dictionary with the preference data from a preferences list
+        Add None values where there is preference
         Args:
-            preferences: list of (day_id, shift_id, person_id, pref_score) tuples
-            shifts: list of (day_id, shift_id, capacity, from, to) tuples where
+            preferences: dict of pref[day_id,shift_id,person_id] = pref_score
+            day_shift_combinations: (day_id, shift_id) tuples for all shifts
+            people: list of all people considered in the model
         Returns:
-            dictionary of pdata[(day_id, shift_id, person_id)] = pref_score
+            dictionary of pref[day_id,shift_id,person_id] = pref_score  or None
         """
-        days = list(ShiftModel.get_daily_shifts(shiftlist).keys()) # Get day names for day indices
+        
         pdata = dict()
-        for pref in preferences:
-            pdata[(days[pref[0]], pref[1], pref[2])] = pref[3]
+        for d, s in day_shift_combinations:
+            for p in people:
+                if (d,s,p) in preferences.keys():
+                    pdata[d,s,p] = preferences[d,s,p]
+                else:
+                    pdata[d,s,p] = None
         
         return pdata
 

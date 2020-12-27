@@ -321,3 +321,23 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
 
 
     workbook.close()
+
+def write_summary(filename, rows):
+    """Creates an excel worksheet to a new file showing the properties of the solves,
+    with links to them.
+    Args:
+        filename: to create the workbook at
+        rows: list of dicts [{'pref':s1, 'unfilled':s2, 'empty':s3, 'filename':s4}, ...]
+    """
+    workbook = xlsxwriter.Workbook(filename)
+    ws = workbook.add_worksheet('index')
+    for cidx, txt in enumerate(['Prefscore', 'Empty Shifts', 'Unfilled Capacities', 'Link to Solve']):
+        ws.write(0, cidx, txt)
+
+    for i, solve in enumerate(rows, start=1):
+        ws.write(i, 0, solve['pref'])
+        ws.write(i, 1, solve['empty'])
+        ws.write(i, 2, solve['unfilled'])
+        ws.write_url(i, 3, solve['filename'])
+    
+    workbook.close()

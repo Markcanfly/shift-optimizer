@@ -45,7 +45,7 @@ if solver.Solve(
         print('Non-optimal solution found.')
 
     if args.verbose:
-        print(f'Unhappiness value: {solver.ObjectiveValue()/10} (lower is better) in {round(solver.WallTime(), 2)} seconds.')
+        print(f'Unhappiness value: {solver.ObjectiveValue()} (lower is better) in {round(solver.WallTime(), 2)} seconds.')
     if args.outjson:
         with open(args.outjson, 'w', encoding='utf8') as jsonfile:
             json.dump(data.json_compatible_solve(solver.get_values()), jsonfile, indent=4, ensure_ascii=False)

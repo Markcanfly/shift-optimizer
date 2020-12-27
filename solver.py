@@ -268,10 +268,10 @@ class ShiftModel(cp_model.CpModel):
                     # Transform their preferences, so that
                     # The global minimum can include them
                     # being assigned to their first 3 shifts.
-                    if preqs[p]['min'] == 0:
-                        pdata[d,s,p] = -1*preferences[d,s,p]
-                    else:
-                        pdata[d,s,p] = 10*preferences[d,s,p]
+                    # if preqs[p]['min'] == 0:
+                    #     pdata[d,s,p] = -(3-preferences[d,s,p])
+                    # else:
+                    pdata[d,s,p] = preferences[d,s,p]
                 else:
                     pdata[d,s,p] = None
         

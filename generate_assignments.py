@@ -47,6 +47,8 @@ for n in range(starting_capacity, sum_capacities+1):
         excel.write_to_file(xlsxfilepath, shifts, prefs, solver.get_values(), personal_reqs)
     else: # No more solutions to be found
         # Create the index
-        excel.write_summary(f'{args.outpath}.xlsx', rows)
+        excel.write_summary(f'{args.outpath}.xlsx', rows, sum_capacities, len(shifts.keys()))
+        break
+    excel.write_summary(f'{args.outpath}.xlsx', rows, sum_capacities, len(shifts.keys()))
 
     

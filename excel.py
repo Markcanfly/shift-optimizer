@@ -324,7 +324,7 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
 
     workbook.close()
 
-def write_summary(filename, rows):
+def write_summary(filename, rows, n_capacities, n_shifts):
     """Creates an excel worksheet to a new file showing the properties of the solves,
     with links to them.
     Args:
@@ -342,4 +342,9 @@ def write_summary(filename, rows):
         ws.write(i, 2, solve['unfilled'])
         ws.write_url(i, 3, solve['filename'])
     
+    ws.write(1, 5, "Number of shifts")
+    ws.write_number(1, 6, n_shifts)
+    ws.write(2, 5, "Number of capacities")
+    ws.write_number(2,6, n_capacities)
+
     workbook.close()

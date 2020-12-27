@@ -38,6 +38,12 @@ if solver.Solve(
     min_shifts_filled_ratio=args.min_shifts_filled_percent
                 ):
     print(solver.get_overview())
+    
+    if solver.StatusName() == 'OPTIMAL':
+        print('Globally optimal solution found.')
+    else:
+        print('Non-optimal solution found.')
+
     if args.verbose:
         print(f'Unhappiness value: {solver.ObjectiveValue()} (lower is better) in {round(solver.WallTime(), 2)} seconds.')
     if args.outjson:
@@ -47,5 +53,4 @@ if solver.Solve(
     if args.outxlsx:
         assignments = solver.get_values()
         excel.write_to_file(args.outxlsx, shifts, prefs, assignments, personal_reqs)
-
     

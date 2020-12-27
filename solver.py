@@ -50,7 +50,7 @@ class ShiftModel(cp_model.CpModel):
         that they signed up for.
         """
         for (d, s, p) in self.variables.keys():
-            if (d,s,p) not in self.prefdata:
+            if self.prefdata[d,s,p] is None:
                 self.Add(self.variables[(d, s, p)] == False)
 
     def AddShiftCapacity(self, min):

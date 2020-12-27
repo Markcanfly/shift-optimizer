@@ -63,6 +63,13 @@ class ShiftModel(cp_model.CpModel):
             for s in shifts:
                 self.AddLinearConstraint(sum(self.variables[(d, s, p)] for p in self.people), min, self.sdata[(d,s)][0])
 
+    def AddMinimumFilledShiftRatio(self, ratio):
+        """Make sure that at least ratio * sum(capacities) is filled.
+        """
+        sum_capacities = sum([shift_props[0] for shift_props in self.sdata.values()])
+
+        self.Add(sum([assigned_val for assigned_val in self.variables.values()]) >= int(sum_capacities*ratio))
+
     def AddWorkMinutes(self):
         """Make sure that everyone works the minimum number of minutes,
         and no one works too much.
@@ -291,7 +298,7 @@ class ShiftSolver(cp_model.CpSolver):
         self.preferences = preferences
         self.model = None
     
-    def Solve(self, min_workers, personal_reqs, pref_function=lambda x:x, timeout=10):
+    def Solve(self, min_workers, personal_reqs, min_shifts_filled_ratio=0, pref_function=lambda x:x, timeout=10):
         """ 
         Args:
             min_workers: The minimum number of workers that have to be assigned to every shift
@@ -305,6 +312,7 @@ class ShiftSolver(cp_model.CpSolver):
         
         self.model = ShiftModel(self.shifts, self.preferences, personal_reqs)
         self.model.AddShiftCapacity(min=min_workers)
+        self.model.AddMinimumFilledShiftRatio(ratio=min_shifts_filled_ratio)
         self.model.MaximizeWelfare(pref_function)
         self.parameters.max_time_in_seconds = timeout
         super().Solve(self.model)

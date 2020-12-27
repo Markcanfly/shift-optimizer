@@ -16,7 +16,7 @@ args = parser.parse_args()
 
 # Collect data from files
 stuples = data.shifts_from_json(args.shifts)
-preftuples = data.preferences_from_csv(args.prefs)
+preftuples = data.preferences_from_csv(args.prefs, args.shifts)
 personal_reqs = data.personal_reqs_from_groups(args.groups)
 
 solver = ShiftSolver(shifts=stuples, preferences=preftuples)

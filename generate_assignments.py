@@ -8,6 +8,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('prefs', help='Name of the CSV file containing the user-submitted preferences.', type=str)
 parser.add_argument('shifts', help='Name of the JSON file containing the shifts.', type=str)
 parser.add_argument('groups', help='Name of the JSON file containing the groups', type=str)
+parser.add_argument('-w', dest='min_workers_per_shift', help='Minimum workers on all shifts. Warning: this will massively increase the time taken to find solutions.', default=0, type=int)
 parser.add_argument('-t', '--timeout', help='The maximum time in seconds that the solver can take to find an optimal solution.', default=10, type=int)
 parser.add_argument('-v', '--verbose', help='Print some extra data about the solution.', action='store_true')
 args = parser.parse_args()
@@ -28,10 +29,13 @@ starting_capacity = int(sum_capacities*0.7)
 
 for n in range(starting_capacity, sum_capacities+1):
     if solver.Solve(
-            min_workers=0, 
+            min_workers=args.min_workers_per_shift, 
             timeout=args.timeout,
             min_capacities_filled=n):
-        print(f'Prefscore: {solver.ObjectiveValue()} Completely empty shifts:{solver.get_n_empty_shifts()} Unfilled capacities:{solver.get_n_unfilled_capacities()} in {solver.WallTime()} seconds')
+        print(f'Prefscore: {solver.ObjectiveValue()} Completely empty shifts: {solver.get_n_empty_shifts()} Unfilled capacities: {solver.get_n_unfilled_capacities()} in {round(solver.WallTime(),2)} seconds', end='')
+        if solver.StatusName() != 'OPTIMAL':
+            print(' !SUBOPTIMAL SOLVE! Try to run with more time', end='')
+        print()
     else:
         break
 

@@ -244,4 +244,7 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments, personal_req
             names_range = f'assignments!{celln(0,1)}:{celln(0, len(people))}'
             master.write_formula(r_index, 4, f'=INDEX({assignments_range},MATCH({shiftname_addr},{shiftids_range},0),MATCH({pname_addr},{names_range},0))')
 
+    master.autofilter(0,4,0,4)
+    master.filter_column(4, "Works == TRUE")
+
     workbook.close()

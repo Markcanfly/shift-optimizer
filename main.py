@@ -35,7 +35,7 @@ solver = ShiftSolver(shifts=shifts, preferences=prefs, personal_reqs=personal_re
 if solver.Solve(
     min_workers=args.min_workers_per_shift, 
     timeout=args.timeout,
-    min_shifts_filled_ratio=args.min_shifts_filled_percent
+    min_capacities_filled_ratio=args.min_shifts_filled_percent
                 ):
     print(solver.get_overview())
     

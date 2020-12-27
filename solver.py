@@ -70,6 +70,11 @@ class ShiftModel(cp_model.CpModel):
 
         self.Add(sum([assigned_val for assigned_val in self.variables.values()]) >= int(sum_capacities*ratio))
 
+    def AddMinimumCapacityFilledNumber(self, n):
+        """Make sure that at least n out of the sum(capacities) is filled.
+        """
+        self.Add(sum([assigned_val for assigned_val in self.variables.values()]) >= n)
+
     def AddWorkMinutes(self):
         """Make sure that everyone works the minimum number of minutes,
         and no one works too much.
@@ -308,7 +313,7 @@ class ShiftSolver(cp_model.CpSolver):
         self.personal_reqs = personal_reqs
         self.model = None
     
-    def Solve(self, min_workers, min_shifts_filled_ratio=0, pref_function=lambda x:x, timeout=10):
+    def Solve(self, min_workers, min_capacities_filled=0, min_capacities_filled_ratio=0, pref_function=lambda x:x, timeout=10):
         """ 
         Args:
             min_workers: The minimum number of workers that have to be assigned to every shift
@@ -322,7 +327,8 @@ class ShiftSolver(cp_model.CpSolver):
         
         self.model = ShiftModel(self.shifts, self.preferences, self.personal_reqs)
         self.model.AddShiftCapacity(min=min_workers)
-        self.model.AddMinimumFilledShiftRatio(ratio=min_shifts_filled_ratio)
+        self.model.AddMinimumCapacityFilledNumber(n=min_capacities_filled)
+        self.model.AddMinimumFilledShiftRatio(ratio=min_capacities_filled_ratio)
         self.model.MaximizeWelfare(pref_function)
         self.parameters.max_time_in_seconds = timeout
         super().Solve(self.model)

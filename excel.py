@@ -219,4 +219,29 @@ def write_to_file(filename, shift_tuples, pref_tuples, assignments, personal_req
         }
     )
 
+    # Master view
+    master = workbook.add_worksheet(name='sensei-view')
+    for col_idx, txt in enumerate(["strID", 
+                         "Begin", 
+                         "End", 
+                         "Person", 
+                         "Works"
+                            ]):
+        master.write(0, col_idx, txt) # TODO hide works columns
+    
+    for scount, (d,s,c,b,e) in enumerate(shift_tuples):
+        del c
+        for pcount, person in enumerate(people):
+            r_index = scount*len(people)+pcount + 1
+            master.write(r_index, 0, str(d)+str(s))
+            master.write(r_index, 1, b/(24*60), time_f)
+            master.write(r_index, 2, e/(24*60), time_f)
+            master.write(r_index, 3, person)
+            assignments_range = f'assignments!{celln(1,1)}:{celln(len(shift_tuples), len(people))}'
+            shiftname_addr = f'{celln(r_index, 0)}'
+            shiftids_range = f'assignments!{celln(1,0)}:{celln(len(shift_tuples),0)}'
+            pname_addr = f'{celln(r_index, 3)}'
+            names_range = f'assignments!{celln(0,1)}:{celln(0, len(people))}'
+            master.write_formula(r_index, 4, f'=INDEX({assignments_range},MATCH({shiftname_addr},{shiftids_range},0),MATCH({pname_addr},{names_range},0))')
+
     workbook.close()

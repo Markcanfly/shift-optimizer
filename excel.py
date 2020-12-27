@@ -122,9 +122,11 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
                 assign_ws.write_boolean(rowidx, colidx, assignments[d,s,p], pref_format)
     
     # Add formula to calculate number of empty places in shifts
-
     assign_ws.write(n_shifts+1,n_people+1, 'Empty places on shifts')
     assign_ws.write_formula(n_shifts+1,n_people+2, f'=SUM({celln(1,n_people+2)}:{celln(n_shifts,n_people+2)})-SUM({celln(1,n_people+1)}:{celln(n_shifts,n_people+1)})')
+    # Add total pref score
+    assign_ws.write(n_shifts+2,n_people+1, 'Pref score')
+    assign_ws.write(n_shifts+2,n_people+2,f'=SUM({celln(n_shifts+7,1)}:{celln(n_shifts+7,n_people)})')
 
     # Add shift capacity condition indicator
     ## Add a formula to the end of each row,
@@ -188,12 +190,15 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
 
     # Horrifying excel formula #1
     def preq_formula(person_col, var_col):
-            return (f'=INDEX(personal_reqs!{celln(1,0, row_abs=True, col_abs=True)}:{celln(n_people,4, row_abs=True, col_abs=True)},'+
+        return (f'=INDEX(personal_reqs!{celln(1,0, row_abs=True, col_abs=True)}:{celln(n_people,4, row_abs=True, col_abs=True)},'+
             f'MATCH({celln(0,person_col, row_abs=True)},personal_reqs!{celln(1,0, row_abs=True, col_abs=True)}:{celln(n_people, 0, row_abs=True, col_abs=True)},0)'
             +f',{var_col})')
 
     def workhours_formula(person_col):
-            return (f'=SUMIF({celln(1,person_col, row_abs=True)}:{celln(n_shifts, person_col, row_abs=True)},TRUE,shifts!{celln(1,6, row_abs=True, col_abs=True)}:{celln(n_shifts,6, row_abs=True, col_abs=True)})')
+        return (f'=SUMIF({celln(1,person_col, row_abs=True)}:{celln(n_shifts, person_col, row_abs=True)},TRUE,shifts!{celln(1,6, row_abs=True, col_abs=True)}:{celln(n_shifts,6, row_abs=True, col_abs=True)})')
+
+    def pref_score_formula(person_col):
+        return f'=SUMIF(assignments!{celln(1,person_col, row_abs=True)}:{celln(n_shifts,person_col, row_abs=True)},TRUE,preferences!{celln(1,person_col, row_abs=True)}:{celln(n_shifts,person_col, row_abs=True)})'
 
     # TODO minor formatting here
 
@@ -203,7 +208,8 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
                          "Max. hours", 
                          "Long shifts taken", 
                          "Min. long shifts", 
-                         "Long shifts only"
+                         "Long shifts only",
+                         "Pref score"
                             ]):
         r0 = n_shifts+1
         assign_ws.write(r0+row_idx, 0, txt)
@@ -220,6 +226,7 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
         assign_ws.write_formula(r0+4, col_idx, min_long_shifts_formula)
         long_shifts_only_formula = preq_formula(col_idx, 5)
         assign_ws.write_formula(r0+5, col_idx, long_shifts_only_formula)
+        assign_ws.write_formula(r0+6, col_idx, pref_score_formula(col_idx))
 
 
     # Add conditional to highlight actual applications

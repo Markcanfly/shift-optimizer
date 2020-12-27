@@ -333,11 +333,7 @@ class ShiftSolver(cp_model.CpSolver):
         self.parameters.max_time_in_seconds = timeout
         super().Solve(self.model)
         if super().StatusName() in ('FEASIBLE', 'OPTIMAL'):
-            print(f'Solution found for the following parameters:')
-            print(f'Minimum people on a shift: {min_workers}')
             return True
-        else:
-            print(f'No solution found for minimum of {min_workers} for each shift.')
         return False
     
     def get_overview(self):
@@ -398,7 +394,7 @@ class ShiftSolver(cp_model.CpSolver):
                     shift_dur_str = f'{get_printable_time(self.model.sdata[(d,s)][1])}-{get_printable_time(self.model.sdata[(d,s)][2])}'
                     txt += f'    Shift {s} {shift_dur_str}\n'
         return txt
-    
+
     def get_values(self):
         """Returns a dictionary with the solver values.
         Returns:
@@ -418,9 +414,8 @@ class ShiftSolver(cp_model.CpSolver):
                 n_empty_shifts += 1
         
         return n_empty_shifts
-                
 
-    def get_n_unfilled_capacity(self):
+    def get_n_unfilled_capacities(self):
         assigned = self.get_values()
         unfilled_capacities = 0
         for (d,s), shift_props in self.model.sdata.items():

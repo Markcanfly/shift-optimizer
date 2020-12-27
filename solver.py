@@ -288,7 +288,7 @@ class ShiftModel(cp_model.CpModel):
         return personal_requirements
 
 class ShiftSolver(cp_model.CpSolver):
-    def __init__(self, shifts, preferences):
+    def __init__(self, shifts, preferences, personal_reqs):
         """Args:
             shifts: list of (day_id, shift_id, capacity, from, to) tuples where
             dict of pref[day_id,shift_id,person_id] = pref_score
@@ -296,9 +296,10 @@ class ShiftSolver(cp_model.CpSolver):
         super().__init__()
         self.shifts = shifts
         self.preferences = preferences
+        self.personal_reqs = personal_reqs
         self.model = None
     
-    def Solve(self, min_workers, personal_reqs, min_shifts_filled_ratio=0, pref_function=lambda x:x, timeout=10):
+    def Solve(self, min_workers, min_shifts_filled_ratio=0, pref_function=lambda x:x, timeout=10):
         """ 
         Args:
             min_workers: The minimum number of workers that have to be assigned to every shift
@@ -310,7 +311,7 @@ class ShiftSolver(cp_model.CpSolver):
             Boolean: whether the solver found a solution.
         """
         
-        self.model = ShiftModel(self.shifts, self.preferences, personal_reqs)
+        self.model = ShiftModel(self.shifts, self.preferences, self.personal_reqs)
         self.model.AddShiftCapacity(min=min_workers)
         self.model.AddMinimumFilledShiftRatio(ratio=min_shifts_filled_ratio)
         self.model.MaximizeWelfare(pref_function)

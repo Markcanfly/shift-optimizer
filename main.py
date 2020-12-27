@@ -19,11 +19,10 @@ shifts = data.shifts_from_json(args.shifts)
 prefs = data.preferences_from_csv(args.prefs, args.shifts)
 personal_reqs = data.personal_reqs_from_groups(args.groups)
 
-solver = ShiftSolver(shifts=shifts, preferences=prefs)
+solver = ShiftSolver(shifts=shifts, preferences=prefs, personal_reqs=personal_reqs)
 for min_workers in (1, 0): 
     if solver.Solve(
         min_workers=min_workers, 
-        personal_reqs=personal_reqs,
         timeout=args.timeout
                     ):
         print(solver.get_overview())

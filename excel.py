@@ -256,6 +256,15 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
         'border': 1
     })
 
+    assign_ws.conditional_format(0,0, n_shifts+1, n_people+1,
+        {
+            'type': 'cell',
+            'criteria': '==',
+            'value': True,
+            'format': applied_shift_format
+        }
+    )
+
     # Master view
     master = workbook.add_worksheet(name='sensei-view')
     for col_idx, txt in enumerate(["strID", 

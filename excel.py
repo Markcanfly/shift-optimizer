@@ -120,13 +120,15 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
                 pref_color = get_prefcolor(preferences[d,s,p], max([preferences[d,s,p] for p in people if preferences[d,s,p] is not None]))
                 pref_format = workbook.add_format({'bg_color':pref_color})
                 assign_ws.write_boolean(rowidx, colidx, assignments[d,s,p], pref_format)
-    
+    # Add formula t calculate number of empty shifts
+    assign_ws.write(n_shifts+1,n_people+1, 'Empty shifts')
+    assign_ws.write_formula(n_shifts+1,n_people+2, f'=COUNTIF({celln(1,n_people+1)}:{celln(n_shifts,n_people+1)},0)')
     # Add formula to calculate number of empty places in shifts
-    assign_ws.write(n_shifts+1,n_people+1, 'Empty places on shifts')
-    assign_ws.write_formula(n_shifts+1,n_people+2, f'=SUM({celln(1,n_people+2)}:{celln(n_shifts,n_people+2)})-SUM({celln(1,n_people+1)}:{celln(n_shifts,n_people+1)})')
+    assign_ws.write(n_shifts+2,n_people+1, 'Empty places on shifts')
+    assign_ws.write_formula(n_shifts+2,n_people+2, f'=SUM({celln(1,n_people+2)}:{celln(n_shifts,n_people+2)})-SUM({celln(1,n_people+1)}:{celln(n_shifts,n_people+1)})')
     # Add total pref score
-    assign_ws.write(n_shifts+2,n_people+1, 'Pref score')
-    assign_ws.write(n_shifts+2,n_people+2,f'=SUM({celln(n_shifts+7,1)}:{celln(n_shifts+7,n_people)})')
+    assign_ws.write(n_shifts+3,n_people+1, 'Pref score')
+    assign_ws.write(n_shifts+3,n_people+2,f'=SUM({celln(n_shifts+7,1)}:{celln(n_shifts+7,n_people)})')
 
     # Add shift capacity condition indicator
     ## Add a formula to the end of each row,

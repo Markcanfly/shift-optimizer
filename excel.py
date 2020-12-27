@@ -121,6 +121,11 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
                 pref_format = workbook.add_format({'bg_color':pref_color})
                 assign_ws.write_boolean(rowidx, colidx, assignments[d,s,p], pref_format)
     
+    # Add formula to calculate number of empty places in shifts
+
+    assign_ws.write(n_shifts+1,n_people+1, 'Empty places on shifts')
+    assign_ws.write_formula(n_shifts+1,n_people+2, f'=SUM({celln(1,n_people+2)}:{celln(n_shifts,n_people+2)})-SUM({celln(1,n_people+1)}:{celln(n_shifts,n_people+1)})')
+
     # Add shift capacity condition indicator
     ## Add a formula to the end of each row,
     ## to calculate the number of people assigned.

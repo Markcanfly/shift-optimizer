@@ -28,7 +28,7 @@ def get_prefcolor(n, max_n):
     return list(good.range_to(bad, max_n + 1))[n].hex_l
 
 def get_people(preferences):
-    return list(set([p[2] for p in preferences]))
+    return sorted(list(set([p[2] for p in preferences])))
 
 def write_to_file(filename, shift_tuples, pref_tuples, assignments, personal_reqs):
     workbook = xlsxwriter.Workbook(filename)

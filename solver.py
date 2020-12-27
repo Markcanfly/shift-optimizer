@@ -15,7 +15,7 @@ class ShiftModel(cp_model.CpModel):
     Then provides an optimal solution (if one exists)
     for the given parameters.
     """
-    def __init__(self, shiftlist, preferences, groups):
+    def __init__(self, shiftlist, preferences, preqs):
         """Args:
             shifts: dict of sdata[day_id, shift_id] = {
                 'capacity': 2,
@@ -29,8 +29,8 @@ class ShiftModel(cp_model.CpModel):
         self.people = ShiftModel.get_people(preferences)
         self.daily_shifts = ShiftModel.get_daily_shifts(shiftlist)
         self.sdata = ShiftModel.get_shiftdata(shiftlist)
-        self.prefdata = ShiftModel.get_prefdata(preferences, self.sdata.keys(), self.people)
-        self.pdata = ShiftModel.get_personal_requirements(groups, self.people)
+        self.pdata = ShiftModel.get_personal_requirements(preqs, self.people)
+        self.prefdata = ShiftModel.get_prefdata(preferences, self.sdata.keys(), self.people, self.pdata)
 
         self.variables = {}
         for d, shifts in self.daily_shifts.items():
@@ -247,13 +247,14 @@ class ShiftModel(cp_model.CpModel):
         return sdata
 
     @staticmethod
-    def get_prefdata(preferences, day_shift_combinations, people):
+    def get_prefdata(preferences, day_shift_combinations, people, preqs):
         """Build a dictionary with the preference data from a preferences list
         Add None values where there is preference
         Args:
             preferences: dict of pref[day_id,shift_id,person_id] = pref_score
             day_shift_combinations: (day_id, shift_id) tuples for all shifts
             people: list of all people considered in the model
+            preqs[person_id] = {'min': n1, 'max': n2, 'long_shifts': n3} dict
         Returns:
             dictionary of pref[day_id,shift_id,person_id] = pref_score  or None
         """
@@ -262,7 +263,15 @@ class ShiftModel(cp_model.CpModel):
         for d, s in day_shift_combinations:
             for p in people:
                 if (d,s,p) in preferences.keys():
-                    pdata[d,s,p] = preferences[d,s,p]
+                    # 0-min-hour compensation:
+                    # If a person has a 0-hour requirement,
+                    # Transform their preferences, so that
+                    # The global minimum can include them
+                    # being assigned to their first 3 shifts.
+                    if preqs[p]['min'] == 0:
+                        pdata[d,s,p] = -0.02 + 0.01*preferences[d,s,p]
+                    else:
+                        pdata[d,s,p] = preferences[d,s,p]
                 else:
                     pdata[d,s,p] = None
         

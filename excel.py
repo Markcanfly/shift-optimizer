@@ -108,7 +108,7 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
     assign_ws = workbook.add_worksheet(name="assignments")
     # Write to the sheet
     ## Headers
-    for idx, txt in enumerate(["strID"] + people + ["n assigned", "capacity"]):
+    for idx, txt in enumerate(["strID"] + people + ["n assigned", "capacity", "Is long"]):
         assign_ws.write(0, idx, txt)
 
     for rowidx, (d,s) in enumerate(shifts.keys(), start=1):
@@ -150,6 +150,10 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
         assign_ws.write_formula(
             rowidx, n_people+2,
             f'=shifts!C{rowidx+1}')
+        assign_ws.write_formula(
+            rowidx, n_people+3,
+            f'=IF(INDEX(shifts!{celln(1,0)}:{celln(n_shifts,6)},MATCH(assignments!{celln(rowidx,0)},assignments!{celln(1,0)}:{celln(n_shifts,0)},0),7)>5,"Long", "")'
+        )
 
         #region Conditional formatting the n_people on shift
         capacity_col_row = celln(rowidx, n_people+2)
@@ -221,7 +225,7 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
         assign_ws.write_formula(r0+1, col_idx, workhours_formula(col_idx))
         max_hours_formula = preq_formula(col_idx, 3)
         assign_ws.write_formula(r0+2, col_idx, max_hours_formula)
-        # TODO formula to calculate number of long shifts
+        assign_ws.write_formula(r0+3, col_idx, f'=COUNTIFS({celln(1,col_idx)}:{celln(n_shifts,col_idx)},TRUE,{celln(1, n_people+3)}:{celln(n_shifts, n_people+3)},"Long")')
         min_long_shifts_formula = preq_formula(col_idx, 4)
         assign_ws.write_formula(r0+4, col_idx, min_long_shifts_formula)
         long_shifts_only_formula = preq_formula(col_idx, 5)

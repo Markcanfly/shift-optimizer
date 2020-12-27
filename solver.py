@@ -404,6 +404,23 @@ class ShiftSolver(cp_model.CpSolver):
         
         return assigned
 
+    def get_n_empty_shifts(self):
+        assigned = self.get_values()
+        n_empty_shifts = 0
+        for d,s in self.model.sdata.keys():
+            if sum([assigned[d,s,p] for p in self.model.people]) == 0:
+                n_empty_shifts += 1
+        
+        return n_empty_shifts
+                
+
+    def get_n_unfilled_capacity(self):
+        assigned = self.get_values()
+        unfilled_capacities = 0
+        for (d,s), shift_props in self.model.sdata.items():
+            unfilled_capacities += (shift_props[0] - sum([assigned[d,s,p] for p in self.model.people]))
+        return unfilled_capacities
+
 # TODO add employer reports to file
     # Extensive stats
 

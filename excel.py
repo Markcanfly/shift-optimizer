@@ -338,25 +338,47 @@ def write_summary(filename: str, rows: Tuple[str, ShiftSolver]):
     hour_format = workbook.add_format({'num_format': '#,##0.00'})
 
     ws = workbook.add_worksheet('index')
-    for cidx, txt in enumerate(['Prefscore', 'Empty Shifts', 'Unfilled Hours','Unfilled Capacities', 'Link to Solve']):
+    for cidx, txt in enumerate(
+        ['Prefscore', 'Average prefscore/person', 'Empty Shifts', 
+        'Unfilled Hours','Unfilled Hours (%)',
+        'Unfilled Capacities', 'Unfilled Capacities (%)', 
+        'Marginal prefence cost of capacity (f\')', 'Link to Solve']):
         ws.write(0, cidx, txt)
 
+    percentage_format = workbook.add_format({'num_format': '0.00%'})
+    dec_format = workbook.add_format({'num_format': '0.00'})
+    is_first_row = True
     for i, (solutionpath, solver) in enumerate(rows, start=1):
         ws.write(i, 0, solver.PrefScore())
-        ws.write(i, 1, solver.EmptyShifts())
-        ws.write_number(i, 2, solver.UnfilledHours(), hour_format)
-        ws.write(i, 3, solver.UnfilledCapacities())
-        ws.write_url(i, 4, solutionpath)
+        ws.write_formula(i, 1, f'={celln(i,0)}/{celln(4,10)}', dec_format)
+        ws.write(i, 2, solver.EmptyShifts())
+        ws.write_number(i, 3, solver.UnfilledHours(), hour_format)
+        ws.write_formula(i, 4, f'={celln(i, 3)}/{celln(3,10)}', percentage_format) 
+        ws.write(i, 5, solver.UnfilledCapacities())
+        ws.write_formula(i, 6, f'={celln(i, 5)}/{celln(2,10)}', percentage_format)
+        if not is_first_row:
+            ws.write_formula(i, 7, f'=-({celln(i, 0)}-{celln(i-1, 0)})/({celln(i, 5)}-{celln(i-1, 5)})')
+        else:
+            is_first_row = False
+        ws.write_url(i, 8, solutionpath)
     
+    marginal_cost_chart = workbook.add_chart({'type':'line'})
+    marginal_cost_chart.add_series({'values': f'=index!{celln(0, 7)}:{celln(len(rows), 7)}'})
+    marginal_cost_chart.set_title({'name': 'Marginal cost for each solve'})
+    marginal_cost_chart.set_legend({'none': True})
+    ws.insert_chart('M3', marginal_cost_chart)
+
     try:
         # Use the first solution, these values should be equal everywhere
         solver = rows[0][1]
-        ws.write(1, 5, "Number of shifts")
-        ws.write_number(1, 6, solver.NShifts())
-        ws.write(2, 5, "Number of capacities")
-        ws.write_number(2,6, solver.NCapacities())
-        ws.write(3, 5, "Number of hours")
-        ws.write_number(3,6, solver.Hours())
+        ws.write(1, 9, "Number of shifts")
+        ws.write_number(1,10, solver.NShifts())
+        ws.write(2, 9, "Number of capacities")
+        ws.write_number(2,10, solver.NCapacities())
+        ws.write(3, 9, "Number of hours")
+        ws.write_number(3,10, solver.Hours())
+        ws.write(4, 9, "Number of people")
+        ws.write_number(4,10, solver.NPeople())
     except IndexError:
         # No solutions
         pass

@@ -343,16 +343,22 @@ def write_summary(filename: str, rows: Tuple[str, ShiftSolver]):
 
     for i, (solutionpath, solver) in enumerate(rows, start=1):
         ws.write(i, 0, solver.PrefScore())
-        ws.write(i, 1, solver.)
-        ws.write_number(i, 2, solve['unfilled_hours'], hour_format)
-        ws.write(i, 3, solver.Unf)
+        ws.write(i, 1, solver.EmptyShifts())
+        ws.write_number(i, 2, solver.UnfilledHours(), hour_format)
+        ws.write(i, 3, solver.UnfilledCapacities())
         ws.write_url(i, 4, solutionpath)
     
-    ws.write(1, 5, "Number of shifts")
-    ws.write_number(1, 6, n_shifts)
-    ws.write(2, 5, "Number of capacities")
-    ws.write_number(2,6, n_capacities)
-    ws.write(3, 5, "Number of hours")
-    ws.write_number(3,6, n_hours)
+    try:
+        # Use the first solution, these values should be equal everywhere
+        solver = rows[0][1]
+        ws.write(1, 5, "Number of shifts")
+        ws.write_number(1, 6, solver.NShifts())
+        ws.write(2, 5, "Number of capacities")
+        ws.write_number(2,6, solver.NCapacities())
+        ws.write(3, 5, "Number of hours")
+        ws.write_number(3,6, solver.Hours())
+    except IndexError:
+        # No solutions
+        pass
 
     workbook.close()

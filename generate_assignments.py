@@ -4,6 +4,7 @@ import json
 from solver import ShiftSolver
 import excel
 from pathlib import Path
+from copy import deepcopy
 
 parser = argparse.ArgumentParser()
 parser.add_argument('prefs', help='Name of the CSV file containing the user-submitted preferences.', type=str)
@@ -43,12 +44,12 @@ for n in range(starting_capacity, sum_capacities+1):
         print()
         xlsxfilepath = f'{args.outpath}/{n}.xlsx'
         # Write to excel and add index for the root later
-        rows.append({'pref': solver.ObjectiveValue(), 'unfilled_capacities': solver.UnfilledCapacities(), 'empty_shifts': solver.EmptyShifts(), 'filename':xlsxfilepath, 'unfilled_hours': solver.UnfilledHours()})
+        rows.append((xlsxfilepath, deepcopy(solver)))
         excel.write_to_file(xlsxfilepath, shifts, prefs, solver.Values(), personal_reqs)
     else: # No more solutions to be found
-        # Create the index
-        excel.write_summary(f'{args.outpath}.xlsx', rows, sum_capacities, len(shifts.keys()), solver.Hours())
         break
-    excel.write_summary(f'{args.outpath}.xlsx', rows, sum_capacities, len(shifts.keys()), solver.Hours())
+
+if len(rows) > 0:
+    excel.write_summary(f'{args.outpath}.xlsx', rows)
 
     

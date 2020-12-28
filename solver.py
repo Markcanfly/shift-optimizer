@@ -15,7 +15,7 @@ class ShiftModel(cp_model.CpModel):
     Then provides an optimal solution (if one exists)
     for the given parameters.
     """
-    def __init__(self, shiftlist, preferences, preqs):
+    def __init__(self, shifts: dict, preferences: dict, personal_requirements: dict):
         """Args:
             shifts: dict of sdata[day_id, shift_id] = {
                 'capacity': 2,
@@ -27,13 +27,13 @@ class ShiftModel(cp_model.CpModel):
         """
         super().__init__()
         self.people = ShiftModel.get_people(preferences)
-        self.daily_shifts = ShiftModel.get_daily_shifts(shiftlist)
-        self.sdata = ShiftModel.get_shiftdata(shiftlist)
-        self.pdata = ShiftModel.get_personal_requirements(preqs, self.people)
-        self.prefdata = ShiftModel.get_prefdata(preferences, self.sdata.keys(), self.people, self.pdata)
+        self.shifts_for_day = ShiftModel.get_daily_shifts(shifts)
+        self.shift_data = ShiftModel.get_shiftdata(shifts)
+        self.preq_data = ShiftModel.get_personal_requirements(personal_requirements, self.people)
+        self.pref_data = ShiftModel.get_prefdata(preferences, self.shift_data.keys(), self.people, self.preq_data)
 
         self.variables = {}
-        for d, shifts in self.daily_shifts.items():
+        for d, shifts in self.shifts_for_day.items():
             for s in shifts:
                 for p in self.people:
                     self.variables[(d, s, p)] = self.NewBoolVar(f'Day{d} Shift{s} Person{p}')
@@ -50,7 +50,7 @@ class ShiftModel(cp_model.CpModel):
         that they signed up for.
         """
         for (d, s, p) in self.variables.keys():
-            if self.prefdata[d,s,p] is None:
+            if self.pref_data[d,s,p] is None:
                 self.Add(self.variables[(d, s, p)] == False)
 
     def AddShiftCapacity(self, min):
@@ -59,14 +59,14 @@ class ShiftModel(cp_model.CpModel):
         Args:
             min: the absolute minimum number of people assigned to each shift
         """
-        for d, shifts in self.daily_shifts.items():
+        for d, shifts in self.shifts_for_day.items():
             for s in shifts:
-                self.AddLinearConstraint(sum(self.variables[(d, s, p)] for p in self.people), min, self.sdata[(d,s)][0])
+                self.AddLinearConstraint(sum(self.variables[(d, s, p)] for p in self.people), min, self.shift_data[(d,s)][0])
 
     def AddMinimumFilledShiftRatio(self, ratio):
         """Make sure that at least ratio * sum(capacities) is filled.
         """
-        sum_capacities = sum([shift_props[0] for shift_props in self.sdata.values()])
+        sum_capacities = sum([shift_props[0] for shift_props in self.shift_data.values()])
 
         self.Add(sum([assigned_val for assigned_val in self.variables.values()]) >= int(sum_capacities*ratio))
 
@@ -82,16 +82,16 @@ class ShiftModel(cp_model.CpModel):
         """
         mins_of_shift = dict() # calculate shift hours
 
-        for (d,s),(c, begin, end) in self.sdata.items():
+        for (d,s),(c, begin, end) in self.shift_data.items():
             del c # Capacity is not used here
             mins_of_shift[(d,s)] = end - begin
         
         for p in self.people:
             work_mins = 0
-            for d, shifts in self.daily_shifts.items():
+            for d, shifts in self.shifts_for_day.items():
                 for s in shifts:
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
-            self.AddLinearConstraint(work_mins, self.pdata[p]['min']*60, self.pdata[p]['max']*60)
+            self.AddLinearConstraint(work_mins, self.preq_data[p]['min']*60, self.preq_data[p]['max']*60)
 
 
     def AddLongShifts(self, length=300):
@@ -101,19 +101,19 @@ class ShiftModel(cp_model.CpModel):
             length: the length (in minutes) that the shifts needs to be LONGER THAN (>) to qualify
         """
         long_shifts = set() # find long shifts
-        for (d, s), (c, begin, end) in self.sdata.items():
+        for (d, s), (c, begin, end) in self.shift_data.items():
             del c # Capacity is not used here
             if end - begin > length: # Number of minutes
                 long_shifts.add((d, s))
 
         for p in self.people:
-            min_long = self.pdata[p]['min_long_shifts']
+            min_long = self.preq_data[p]['min_long_shifts']
             if min_long > 0:
                 self.Add(
                     sum([self.variables[(d,s,p)] for (d,s) in long_shifts]) > min_long
                 )
-            if self.pdata[p]['only_long_shifts']:
-                non_long_shifts = set(self.sdata.keys()).difference(long_shifts)
+            if self.preq_data[p]['only_long_shifts']:
+                non_long_shifts = set(self.shift_data.keys()).difference(long_shifts)
                 for d, s in non_long_shifts:
                     self.Add(self.variables[d,s,p] == False)
 
@@ -123,7 +123,7 @@ class ShiftModel(cp_model.CpModel):
         another shift on the some day.
         """
         long_shifts = set() # find long shifts
-        for (d, s), (c, begin, end) in self.sdata.items():
+        for (d, s), (c, begin, end) in self.shift_data.items():
             del c # Capacity is not used here
             if end - begin > length: # Number of minutes
                 long_shifts.add((d, s))
@@ -132,13 +132,13 @@ class ShiftModel(cp_model.CpModel):
             for (d,long_s) in long_shifts:
                 # Technically: for each long shift, if p works on that long shift, make sure that for that day,
                 # The number of shifts worked for that person is exactly one.
-                self.Add(sum([(self.variables[d,s,p]) for s in self.daily_shifts[d]]) == 1).OnlyEnforceIf(self.variables[d,long_s,p])
+                self.Add(sum([(self.variables[d,s,p]) for s in self.shifts_for_day[d]]) == 1).OnlyEnforceIf(self.variables[d,long_s,p])
 
     def AddNoConflict(self):
         """Make sure that no one has two shifts on a day that overlap.
         """
         conflicting_pairs = set() # assuming every day has the same shifts
-        for ((d1,s1),(c1, b1, e1)), ((d2,s2),(c2, b2,e2)) in combinations(self.sdata.items(), r=2):
+        for ((d1,s1),(c1, b1, e1)), ((d2,s2),(c2, b2,e2)) in combinations(self.shift_data.items(), r=2):
             del c1, c2 # Capacity is not used here
             if (d1==d2) and (((b2 < b1 < e2) or (b2 < e1 < e2)) or (((b1 < b2 < e1) or (b1 < e2 < e1)))): # Test conflict
                 conflicting_pairs.add((d1,(s1,s2))) # add their ids
@@ -178,7 +178,7 @@ class ShiftModel(cp_model.CpModel):
         """
         pref = dict()
         for (d,s,p) in self.variables:
-            pref[(d,s,p)] = self.prefdata[(d,s,p)] if (d,s,p) in self.prefdata else 0
+            pref[(d,s,p)] = self.pref_data[(d,s,p)] if (d,s,p) in self.pref_data else 0
 
         self.Minimize(
             sum([works*fun(pref[works_id]) for works_id, works in self.variables.items() if pref[works_id] is not None])
@@ -190,9 +190,9 @@ class ShiftModel(cp_model.CpModel):
         # Create a dictionary so that
         # first_last['day'] = (firstshift_id, lastshift_id)
         first_last = dict()
-        for day, shift_ids in self.daily_shifts.items():
-            first = sorted(shift_ids, key= lambda s: self.sdata[day,s][1])[0] # By beginning, ascending
-            last = sorted(shift_ids, key= lambda s: self.sdata[day, s][2], reverse=True)[0] # By end, descending
+        for day, shift_ids in self.shifts_for_day.items():
+            first = sorted(shift_ids, key= lambda s: self.shift_data[day,s][1])[0] # By beginning, ascending
+            last = sorted(shift_ids, key= lambda s: self.shift_data[day, s][2], reverse=True)[0] # By end, descending
             first_last[day] = (first, last)
 
         return first_last
@@ -302,18 +302,24 @@ class ShiftModel(cp_model.CpModel):
         return personal_requirements
 
 class ShiftSolver(cp_model.CpSolver):
-    def __init__(self, shifts, preferences, personal_reqs):
+    def __init__(self, shifts: dict, preferences: dict, personal_reqs: dict):
         """Args:
             shifts: list of (day_id, shift_id, capacity, from, to) tuples where
-            dict of pref[day_id,shift_id,person_id] = pref_score
+            dict of pref[day_id,shift_id,person_id] = pref_score,
+            personal_reqs: preqs: preqs[person_id] = {
+                'min': n1, 
+                'max': n2, 
+                'min_long_shifts': n3, 
+                'only_long_shifts': bool1
+            } dict
         """
         super().__init__()
         self.shifts = shifts
         self.preferences = preferences
         self.personal_reqs = personal_reqs
-        self.model = None
+        self.__model = None
     
-    def Solve(self, min_workers, min_capacities_filled=0, min_capacities_filled_ratio=0, pref_function=lambda x:x, timeout=10):
+    def Solve(self, min_workers: int, min_capacities_filled: int = 0, min_capacities_filled_ratio: float = 0, pref_function=lambda x:x, timeout=10) -> bool:
         """ 
         Args:
             min_workers: The minimum number of workers that have to be assigned to every shift
@@ -325,13 +331,13 @@ class ShiftSolver(cp_model.CpSolver):
             Boolean: whether the solver found a solution.
         """
         
-        self.model = ShiftModel(self.shifts, self.preferences, self.personal_reqs)
-        self.model.AddShiftCapacity(min=min_workers)
-        self.model.AddMinimumCapacityFilledNumber(n=min_capacities_filled)
-        self.model.AddMinimumFilledShiftRatio(ratio=min_capacities_filled_ratio)
-        self.model.MaximizeWelfare(pref_function)
+        self.__model = ShiftModel(self.shifts, self.preferences, self.personal_reqs)
+        self.__model.AddShiftCapacity(min=min_workers)
+        self.__model.AddMinimumCapacityFilledNumber(n=min_capacities_filled)
+        self.__model.AddMinimumFilledShiftRatio(ratio=min_capacities_filled_ratio)
+        self.__model.MaximizeWelfare(pref_function)
         self.parameters.max_time_in_seconds = timeout
-        super().Solve(self.model)
+        super().Solve(self.__model)
         if super().StatusName() in ('FEASIBLE', 'OPTIMAL'):
             return True
         return False
@@ -348,16 +354,16 @@ class ShiftSolver(cp_model.CpSolver):
         """
         txt = str()
 
-        for d, shifts in self.model.daily_shifts.items():
+        for d, shifts in self.__model.shifts_for_day.items():
             txt += f'Day {d}:\n'
             for s in shifts:
-                shift_dur_str = f'{get_printable_time(self.model.sdata[(d,s)][1])}-{get_printable_time(self.model.sdata[(d,s)][2])}'
+                shift_dur_str = f'{get_printable_time(self.__model.shift_data[(d,s)][1])}-{get_printable_time(self.__model.shift_data[(d,s)][2])}'
                 txt += f'    Shift {s} {shift_dur_str}\n'
-                for p in self.model.people:
-                    if self.Value(self.model.variables[(d,s,p)]):
+                for p in self.__model.people:
+                    if self.Value(self.__model.variables[(d,s,p)]):
                         txt += f'        {p}'
                         if with_preferences:
-                            txt += f'preference {self.model.prefdata[(d,s,p)]}'
+                            txt += f'preference {self.__model.pref_data[(d,s,p)]}'
                         txt += '\n'
             txt += '\n'
         if with_preferences:
@@ -370,12 +376,12 @@ class ShiftSolver(cp_model.CpSolver):
             Multiline string
         """
         txt = str()
-        for p in self.model.people:
+        for p in self.__model.people:
             work_hours=0
-            for d, shifts in self.model.daily_shifts.items():
+            for d, shifts in self.__model.shifts_for_day.items():
                 for s in shifts:
-                    s_hours = (self.model.sdata[(d,s)][2] - self.model.sdata[(d,s)][1]) / 60
-                    work_hours += self.Value(self.model.variables[d,s,p]) * s_hours
+                    s_hours = (self.__model.shift_data[(d,s)][2] - self.__model.shift_data[(d,s)][1]) / 60
+                    work_hours += self.Value(self.__model.variables[d,s,p]) * s_hours
             txt += f'{p} works {work_hours} hours.\n'
         return txt
 
@@ -387,52 +393,52 @@ class ShiftSolver(cp_model.CpSolver):
             Multiline string
         """
         txt = str()
-        for d, shifts in self.model.daily_shifts.items():
+        for d, shifts in self.__model.shifts_for_day.items():
             txt += f'Day {d}:\n'
             for s in shifts:
-                if self.Value(self.model.variables[(d,s,employee_id)]):
-                    shift_dur_str = f'{get_printable_time(self.model.sdata[(d,s)][1])}-{get_printable_time(self.model.sdata[(d,s)][2])}'
+                if self.Value(self.__model.variables[(d,s,employee_id)]):
+                    shift_dur_str = f'{get_printable_time(self.__model.shift_data[(d,s)][1])}-{get_printable_time(self.__model.shift_data[(d,s)][2])}'
                     txt += f'    Shift {s} {shift_dur_str}\n'
         return txt
 
-    def get_values(self):
+    def Values(self) -> dict:
         """Returns a dictionary with the solver values.
         Returns:
             assigned[day_id, shift_id, person_id] = True | False
         """
         assigned = dict()
-        for d,s,p in self.model.variables.keys():
-            assigned[d,s,p] = self.Value(self.model.variables[d,s,p])
+        for d,s,p in self.__model.variables.keys():
+            assigned[d,s,p] = self.Value(self.__model.variables[d,s,p])
         
         return assigned
 
-    def get_n_empty_shifts(self):
-        assigned = self.get_values()
+    def EmptyShifts(self) -> int:
+        assigned = self.Values()
         n_empty_shifts = 0
-        for d,s in self.model.sdata.keys():
-            if sum([assigned[d,s,p] for p in self.model.people]) == 0:
+        for d,s in self.__model.shift_data.keys():
+            if sum([assigned[d,s,p] for p in self.__model.people]) == 0:
                 n_empty_shifts += 1
         
         return n_empty_shifts
 
-    def get_n_unfilled_capacities(self):
-        assigned = self.get_values()
+    def UnfilledCapacities(self) -> int:
+        assigned = self.Values()
         unfilled_capacities = 0
-        for (d,s), shift_props in self.model.sdata.items():
-            unfilled_capacities += (shift_props[0] - sum([assigned[d,s,p] for p in self.model.people]))
+        for (d,s), shift_props in self.__model.shift_data.items():
+            unfilled_capacities += (shift_props[0] - sum([assigned[d,s,p] for p in self.__model.people]))
         return unfilled_capacities
 
-    def get_n_unfilled_hours(self):
-        assigned = self.get_values()
+    def UnfilledHours(self) -> float:
+        assigned = self.Values()
         unfilled_hours = 0
-        for (d,s), shift_props in self.model.sdata.items():
-            unfilled_capacities_on_this_shift = (shift_props[0] - sum([assigned[d,s,p] for p in self.model.people]))
+        for (d,s), shift_props in self.__model.shift_data.items():
+            unfilled_capacities_on_this_shift = (shift_props[0] - sum([assigned[d,s,p] for p in self.__model.people]))
             length_of_shift_in_hours = (shift_props[2] - shift_props[1]) / 60
             unfilled_hours += unfilled_capacities_on_this_shift * length_of_shift_in_hours
         return unfilled_hours
 
-    def get_n_all_hours(self):
+    def Hours(self) -> float:
         n_hours = 0
-        for capacity, begin_mins, end_mins in self.model.sdata.values():
+        for capacity, begin_mins, end_mins in self.__model.shift_data.values():
             n_hours += ((end_mins-begin_mins)/60)*capacity
         return n_hours

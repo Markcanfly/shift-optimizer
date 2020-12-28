@@ -37,18 +37,18 @@ for n in range(starting_capacity, sum_capacities+1):
             min_workers=args.min_workers_per_shift, 
             timeout=args.timeout,
             min_capacities_filled=n):       
-        print(f'Prefscore: {solver.ObjectiveValue()} Completely empty shifts: {solver.get_n_empty_shifts()} Unfilled capacities: {solver.get_n_unfilled_capacities()} in {round(solver.WallTime(),2)} seconds', end='')
+        print(f'Prefscore: {solver.ObjectiveValue()} Completely empty shifts: {solver.EmptyShifts()} Unfilled capacities: {solver.UnfilledCapacities()} in {round(solver.WallTime(),2)} seconds', end='')
         if solver.StatusName() != 'OPTIMAL':
             print(' !SUBOPTIMAL SOLVE! Try to run with more time', end='')
         print()
         xlsxfilepath = f'{args.outpath}/{n}.xlsx'
         # Write to excel and add index for the root later
-        rows.append({'pref': solver.ObjectiveValue(), 'unfilled_capacities': solver.get_n_unfilled_capacities(), 'empty_shifts': solver.get_n_empty_shifts(), 'filename':xlsxfilepath, 'unfilled_hours': solver.get_n_unfilled_hours()})
-        excel.write_to_file(xlsxfilepath, shifts, prefs, solver.get_values(), personal_reqs)
+        rows.append({'pref': solver.ObjectiveValue(), 'unfilled_capacities': solver.UnfilledCapacities(), 'empty_shifts': solver.EmptyShifts(), 'filename':xlsxfilepath, 'unfilled_hours': solver.UnfilledHours()})
+        excel.write_to_file(xlsxfilepath, shifts, prefs, solver.Values(), personal_reqs)
     else: # No more solutions to be found
         # Create the index
-        excel.write_summary(f'{args.outpath}.xlsx', rows, sum_capacities, len(shifts.keys()), solver.get_n_all_hours())
+        excel.write_summary(f'{args.outpath}.xlsx', rows, sum_capacities, len(shifts.keys()), solver.Hours())
         break
-    excel.write_summary(f'{args.outpath}.xlsx', rows, sum_capacities, len(shifts.keys()), solver.get_n_all_hours())
+    excel.write_summary(f'{args.outpath}.xlsx', rows, sum_capacities, len(shifts.keys()), solver.Hours())
 
     

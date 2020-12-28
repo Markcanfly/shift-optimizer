@@ -48,9 +48,9 @@ if solver.Solve(
         print(f'Unhappiness value: {solver.ObjectiveValue()} (lower is better) in {round(solver.WallTime(), 2)} seconds.')
     if args.outjson:
         with open(args.outjson, 'w', encoding='utf8') as jsonfile:
-            json.dump(data.json_compatible_solve(solver.get_values()), jsonfile, indent=4, ensure_ascii=False)
+            json.dump(data.json_compatible_solve(solver.Values()), jsonfile, indent=4, ensure_ascii=False)
     
     if args.outxlsx:
-        assignments = solver.get_values()
+        assignments = solver.Values()
         excel.write_to_file(args.outxlsx, shifts, prefs, assignments, personal_reqs)
     

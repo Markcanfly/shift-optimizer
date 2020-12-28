@@ -412,6 +412,9 @@ class ShiftSolver(cp_model.CpSolver):
         
         return assigned
 
+    def PrefScore(self) -> float:
+        return self.ObjectiveValue()
+
     def EmptyShifts(self) -> int:
         assigned = self.Values()
         n_empty_shifts = 0
@@ -421,12 +424,22 @@ class ShiftSolver(cp_model.CpSolver):
         
         return n_empty_shifts
 
+    def NShifts(self) -> int:
+        return len(self.__model.shift_data.keys())
+
     def UnfilledCapacities(self) -> int:
         assigned = self.Values()
         unfilled_capacities = 0
         for (d,s), shift_props in self.__model.shift_data.items():
             unfilled_capacities += (shift_props[0] - sum([assigned[d,s,p] for p in self.__model.people]))
         return unfilled_capacities
+
+    def NCapacities(self) -> int:
+        capacities = 0
+        for capacity, begin, end in self.__model.shift_data.values():
+            del begin, end
+            capacities += capacity
+        return capacities
 
     def UnfilledHours(self) -> float:
         assigned = self.Values()
@@ -442,3 +455,6 @@ class ShiftSolver(cp_model.CpSolver):
         for capacity, begin_mins, end_mins in self.__model.shift_data.values():
             n_hours += ((end_mins-begin_mins)/60)*capacity
         return n_hours
+
+    def NPeople(self) -> int:
+        return len(self.__model.people)

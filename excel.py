@@ -2,6 +2,8 @@ import xlsxwriter
 from xlsxwriter.utility import xl_rowcol_to_cell as celln
 import data
 from colour import Color
+from typing import List, Tuple
+from solver import ShiftSolver
 
 def get_days(shifts):
     """Get the list of day names, in order,
@@ -324,12 +326,12 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
 
     workbook.close()
 
-def write_summary(filename, rows, n_capacities, n_shifts, n_hours):
+def write_summary(filename: str, rows: Tuple[str, ShiftSolver]):
     """Creates an excel worksheet to a new file showing the properties of the solves,
     with links to them.
     Args:
         filename: to create the workbook at
-        rows: list of dicts [{'pref':s1, 'unfilled':s2, 'empty':s3, 'filename':s4}, ...]
+        rows: list of (xlsxfilepath, solver) tuples
     """
     workbook = xlsxwriter.Workbook(filename)
     
@@ -339,12 +341,12 @@ def write_summary(filename, rows, n_capacities, n_shifts, n_hours):
     for cidx, txt in enumerate(['Prefscore', 'Empty Shifts', 'Unfilled Hours','Unfilled Capacities', 'Link to Solve']):
         ws.write(0, cidx, txt)
 
-    for i, solve in enumerate(rows, start=1):
-        ws.write(i, 0, solve['pref'])
-        ws.write(i, 1, solve['empty_shifts'])
+    for i, (solutionpath, solver) in enumerate(rows, start=1):
+        ws.write(i, 0, solver.PrefScore())
+        ws.write(i, 1, solver.)
         ws.write_number(i, 2, solve['unfilled_hours'], hour_format)
-        ws.write(i, 3, solve['unfilled_capacities'])
-        ws.write_url(i, 4, solve['filename'])
+        ws.write(i, 3, solver.Unf)
+        ws.write_url(i, 4, solutionpath)
     
     ws.write(1, 5, "Number of shifts")
     ws.write_number(1, 6, n_shifts)

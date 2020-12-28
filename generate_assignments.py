@@ -43,12 +43,12 @@ for n in range(starting_capacity, sum_capacities+1):
         print()
         xlsxfilepath = f'{args.outpath}/{n}.xlsx'
         # Write to excel and add index for the root later
-        rows.append({'pref': solver.ObjectiveValue(), 'unfilled': solver.get_n_unfilled_capacities(), 'empty': solver.get_n_empty_shifts(), 'filename':xlsxfilepath})
+        rows.append({'pref': solver.ObjectiveValue(), 'unfilled_capacities': solver.get_n_unfilled_capacities(), 'empty_shifts': solver.get_n_empty_shifts(), 'filename':xlsxfilepath, 'unfilled_hours': solver.get_n_unfilled_hours()})
         excel.write_to_file(xlsxfilepath, shifts, prefs, solver.get_values(), personal_reqs)
     else: # No more solutions to be found
         # Create the index
-        excel.write_summary(f'{args.outpath}.xlsx', rows, sum_capacities, len(shifts.keys()))
+        excel.write_summary(f'{args.outpath}.xlsx', rows, sum_capacities, len(shifts.keys()), solver.get_n_all_hours())
         break
-    excel.write_summary(f'{args.outpath}.xlsx', rows, sum_capacities, len(shifts.keys()))
+    excel.write_summary(f'{args.outpath}.xlsx', rows, sum_capacities, len(shifts.keys()), solver.get_n_all_hours())
 
     

@@ -422,9 +422,17 @@ class ShiftSolver(cp_model.CpSolver):
             unfilled_capacities += (shift_props[0] - sum([assigned[d,s,p] for p in self.model.people]))
         return unfilled_capacities
 
-# TODO add employer reports to file
-    # Extensive stats
+    def get_n_unfilled_hours(self):
+        assigned = self.get_values()
+        unfilled_hours = 0
+        for (d,s), shift_props in self.model.sdata.items():
+            unfilled_capacities_on_this_shift = (shift_props[0] - sum([assigned[d,s,p] for p in self.model.people]))
+            length_of_shift_in_hours = (shift_props[2] - shift_props[1]) / 60
+            unfilled_hours += unfilled_capacities_on_this_shift * length_of_shift_in_hours
+        return unfilled_hours
 
-# TODO add leeway instead of people per shift
-# right now it doesn't really have an incentive to fill shifts
-# with capacity > 1, only if it's convenient. Change that.
+    def get_n_all_hours(self):
+        n_hours = 0
+        for capacity, begin_mins, end_mins in self.model.sdata.values():
+            n_hours += ((end_mins-begin_mins)/60)*capacity
+        return n_hours

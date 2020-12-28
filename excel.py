@@ -324,7 +324,7 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
 
     workbook.close()
 
-def write_summary(filename, rows, n_capacities, n_shifts):
+def write_summary(filename, rows, n_capacities, n_shifts, n_hours):
     """Creates an excel worksheet to a new file showing the properties of the solves,
     with links to them.
     Args:
@@ -332,19 +332,25 @@ def write_summary(filename, rows, n_capacities, n_shifts):
         rows: list of dicts [{'pref':s1, 'unfilled':s2, 'empty':s3, 'filename':s4}, ...]
     """
     workbook = xlsxwriter.Workbook(filename)
+    
+    hour_format = workbook.add_format({'num_format': '#,##0.00'})
+
     ws = workbook.add_worksheet('index')
-    for cidx, txt in enumerate(['Prefscore', 'Empty Shifts', 'Unfilled Capacities', 'Link to Solve']):
+    for cidx, txt in enumerate(['Prefscore', 'Empty Shifts', 'Unfilled Hours','Unfilled Capacities', 'Link to Solve']):
         ws.write(0, cidx, txt)
 
     for i, solve in enumerate(rows, start=1):
         ws.write(i, 0, solve['pref'])
-        ws.write(i, 1, solve['empty'])
-        ws.write(i, 2, solve['unfilled'])
-        ws.write_url(i, 3, solve['filename'])
+        ws.write(i, 1, solve['empty_shifts'])
+        ws.write_number(i, 2, solve['unfilled_hours'], hour_format)
+        ws.write(i, 3, solve['unfilled_capacities'])
+        ws.write_url(i, 4, solve['filename'])
     
     ws.write(1, 5, "Number of shifts")
     ws.write_number(1, 6, n_shifts)
     ws.write(2, 5, "Number of capacities")
     ws.write_number(2,6, n_capacities)
+    ws.write(3, 5, "Number of hours")
+    ws.write_number(3,6, n_hours)
 
     workbook.close()

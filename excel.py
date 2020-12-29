@@ -348,19 +348,20 @@ def write_summary(filename: str, rows: Tuple[str, ShiftSolver]):
     percentage_format = workbook.add_format({'num_format': '0.00%'})
     dec_format = workbook.add_format({'num_format': '0.00'})
     is_first_row = True
-    for i, (solutionpath, solver) in enumerate(rows, start=1):
-        ws.write(i, 0, solver.PrefScore())
-        ws.write_formula(i, 1, f'={celln(i,0)}/{celln(4,10)}', dec_format)
-        ws.write(i, 2, solver.EmptyShifts())
-        ws.write_number(i, 3, solver.UnfilledHours(), hour_format)
-        ws.write_formula(i, 4, f'={celln(i, 3)}/{celln(3,10)}', percentage_format) 
-        ws.write(i, 5, solver.UnfilledCapacities())
-        ws.write_formula(i, 6, f'={celln(i, 5)}/{celln(2,10)}', percentage_format)
-        if not is_first_row:
-            ws.write_formula(i, 7, f'=-({celln(i, 0)}-{celln(i-1, 0)})/({celln(i, 5)}-{celln(i-1, 5)})')
-        else:
-            is_first_row = False
-        ws.write_url(i, 8, solutionpath)
+    for rowidx, (solutionpath, solver) in enumerate(rows, start=1):
+        for colidx, (val, format_) in enumerate(
+            [(solver.PrefScore(),None),
+            (f'={(c_pref := celln(rowidx,0))}/{(c_n_all_people := celln(4,10))}', dec_format),
+            (solver.EmptyShifts(), None),
+            (solver.UnfilledHours(), hour_format),
+            (f'={(c_hours := celln(rowidx, 3))}/{(c_n_all_hours := celln(3,10))}', percentage_format),
+            (solver.UnfilledCapacities(), None),
+            (f'={(c_caps := celln(rowidx, 5))}/{(c_n_all_caps := celln(2,10))}', percentage_format),
+            (f'=IF(ISNUMBER({(c_caps_prev := celln(rowidx-1, 5))}),(-({c_pref}-{(c_pref_prev := celln(rowidx-1,0))})/({c_caps}-{c_caps_prev})),"")', None)
+            ]
+        ):
+            ws.write(rowidx, colidx, val, format_)
+        ws.write_url(rowidx, colidx+1, solutionpath)
     
     marginal_cost_chart = workbook.add_chart({'type':'line'})
     marginal_cost_chart.add_series({'values': f'=index!{celln(0, 7)}:{celln(len(rows), 7)}'})

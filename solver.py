@@ -59,23 +59,21 @@ class ShiftModel(cp_model.CpModel):
         Args:
             min: the absolute minimum number of people assigned to each shift
         """
-        if min > 0: # Sum of BoolVars can't be < 0
-            for d, shifts in self.shifts_for_day.items():
-                for s in shifts:
-                    self.AddLinearConstraint(sum(self.variables[(d, s, p)] for p in self.people), min, self.shift_data[(d,s)][0])
+        for d, shifts in self.shifts_for_day.items():
+            for s in shifts:
+                self.AddLinearConstraint(sum(self.variables[(d, s, p)] for p in self.people), min, self.shift_data[(d,s)][0])
 
     def AddMinimumFilledShiftRatio(self, ratio):
         """Make sure that at least ratio * sum(capacities) is filled.
         """
-        if ratio > 0: # Sum of BoolVars can't be < 0
-            sum_capacities = sum([shift_props[0] for shift_props in self.shift_data.values()])
-            self.Add(sum([assigned_val for assigned_val in self.variables.values()]) >= int(sum_capacities*ratio))
+        sum_capacities = sum([shift_props[0] for shift_props in self.shift_data.values()])
+
+        self.Add(sum([assigned_val for assigned_val in self.variables.values()]) >= int(sum_capacities*ratio))
 
     def AddMinimumCapacityFilledNumber(self, n):
         """Make sure that at least n out of the sum(capacities) is filled.
         """
-        if n > 0: # Sum of BoolVars can't be < 0
-            self.Add(sum([assigned_val for assigned_val in self.variables.values()]) >= n)
+        self.Add(sum([assigned_val for assigned_val in self.variables.values()]) >= n)
 
     def AddWorkMinutes(self):
         """Make sure that everyone works the minimum number of minutes,

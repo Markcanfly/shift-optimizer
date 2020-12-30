@@ -339,10 +339,16 @@ def write_summary(filename: str, rows: Tuple[str, ShiftSolver]):
 
     ws = workbook.add_worksheet('index')
     for cidx, txt in enumerate(
-        ['Prefscore', 'Average prefscore/person', 'Empty Shifts', 
-        'Unfilled Hours','Unfilled Hours (%)',
-        'Unfilled Capacities', 'Unfilled Capacities (%)', 
-        'Marginal prefence cost of capacity (f\')', 'Link to Solve']):
+        ['Prefscore', 
+        'Average prefscore/person', 
+        'Mode of prefscores', 
+        'Empty Shifts', 
+        'Unfilled Hours',
+        'Unfilled Hours (%)',
+        'Unfilled Capacities', 
+        'Unfilled Capacities (%)', 
+        'Marginal prefence cost of capacity (f\')', 
+        'Link to Solve']):
         ws.write(0, cidx, txt)
 
     percentage_format = workbook.add_format({'num_format': '0.00%'})
@@ -351,13 +357,14 @@ def write_summary(filename: str, rows: Tuple[str, ShiftSolver]):
     for rowidx, (solutionpath, solver) in enumerate(rows, start=1):
         for colidx, (val, format_) in enumerate(
             [(solver.PrefScore(),None),
-            (f'={(c_pref := celln(rowidx,0))}/{(c_n_all_people := celln(4,10))}', dec_format),
+            (f'={(c_pref := celln(rowidx,0))}/{(c_n_all_people := celln(4,11))}', dec_format),
+            (",".join(list(map(str,solver.PrefModes()))), None),
             (solver.EmptyShifts(), None),
             (solver.UnfilledHours(), hour_format),
-            (f'={(c_hours := celln(rowidx, 3))}/{(c_n_all_hours := celln(3,10))}', percentage_format),
+            (f'={(c_hours := celln(rowidx, 4))}/{(c_n_all_hours := celln(3,11))}', percentage_format),
             (solver.UnfilledCapacities(), None),
-            (f'={(c_caps := celln(rowidx, 5))}/{(c_n_all_caps := celln(2,10))}', percentage_format),
-            (f'=IF(ISNUMBER({(c_caps_prev := celln(rowidx-1, 5))}),IF(AND((({c_caps_prev}-{c_caps})<>0),(({(c_pref_prev := celln(rowidx-1,0))}-{c_pref})<>0)),(-({c_pref}-{c_pref_prev})/({c_caps}-{c_caps_prev})),""),"")', None)
+            (f'={(c_caps := celln(rowidx, 6))}/{(c_n_all_caps := celln(2,11))}', percentage_format),
+            (f'=IF(ISNUMBER({(c_caps_prev := celln(rowidx-1, 6))}),IF(AND((({c_caps_prev}-{c_caps})<>0),(({(c_pref_prev := celln(rowidx-1,0))}-{c_pref})<>0)),(-({c_pref}-{c_pref_prev})/({c_caps}-{c_caps_prev})),""),"")', None)
             ]
         ):
             ws.write(rowidx, colidx, val, format_)
@@ -372,14 +379,14 @@ def write_summary(filename: str, rows: Tuple[str, ShiftSolver]):
     try:
         # Use the first solution, these values should be equal everywhere
         solver = rows[0][1]
-        ws.write(1, 9, "Number of shifts")
-        ws.write_number(1,10, solver.NShifts())
-        ws.write(2, 9, "Number of capacities")
-        ws.write_number(2,10, solver.NCapacities())
-        ws.write(3, 9, "Number of hours")
-        ws.write_number(3,10, solver.Hours())
-        ws.write(4, 9, "Number of people")
-        ws.write_number(4,10, solver.NPeople())
+        ws.write(1, 10, "Number of shifts")
+        ws.write_number(1,11, solver.NShifts())
+        ws.write(2, 10, "Number of capacities")
+        ws.write_number(c_n_all_caps, solver.NCapacities())
+        ws.write(3, 10, "Number of hours")
+        ws.write_number(c_n_all_hours, solver.Hours())
+        ws.write(4, 10, "Number of people")
+        ws.write_number(c_n_all_people, solver.NPeople())
     except IndexError:
         # No solutions
         pass

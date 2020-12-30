@@ -364,14 +364,14 @@ def write_summary(filename: str, rows: Tuple[str, ShiftSolver]):
             (f'={(c_hours := celln(rowidx, 4))}/{(c_n_all_hours := celln(3,11))}', percentage_format),
             (solver.UnfilledCapacities(), None),
             (f'={(c_caps := celln(rowidx, 6))}/{(c_n_all_caps := celln(2,11))}', percentage_format),
-            (f'=IF(ISNUMBER({(c_caps_prev := celln(rowidx-1, 6))}),IF(AND((({c_caps_prev}-{c_caps})<>0),(({(c_pref_prev := celln(rowidx-1,0))}-{c_pref})<>0)),(-({c_pref}-{c_pref_prev})/({c_caps}-{c_caps_prev})),""),"")', None)
+            (f'=IF(ISNUMBER({(c_caps_prev := celln(rowidx-1, 6))}),IF(AND((({c_caps_prev}-{c_caps})<>0),(({(c_pref_prev := celln(rowidx-1,0))}-{c_pref})<>0)),(-({c_pref}-{c_pref_prev})/({c_caps}-{c_caps_prev})),0),"")', None)
             ]
         ):
             ws.write(rowidx, colidx, val, format_)
         ws.write_url(rowidx, colidx+1, solutionpath)
     
     marginal_cost_chart = workbook.add_chart({'type':'line'})
-    marginal_cost_chart.add_series({'values': f'=index!{celln(0, 7)}:{celln(len(rows), 7)}'})
+    marginal_cost_chart.add_series({'values': f'=index!{celln(0, 8)}:{celln(len(rows), 8)}'})
     marginal_cost_chart.set_title({'name': 'Marginal cost for each solve'})
     marginal_cost_chart.set_legend({'none': True})
     ws.insert_chart('M3', marginal_cost_chart)

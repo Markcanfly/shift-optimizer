@@ -28,7 +28,7 @@ sum_capacities = 0
 for shift_props in shifts.values():
     sum_capacities += shift_props['capacity']
 
-starting_capacity = int(sum_capacities*0.7)
+starting_capacity = int(sum_capacities*0.9)
 
 Path(args.outpath+'/sols').mkdir(parents=True, exist_ok=True)
 rows = [] # {'pref':s1, 'unfilled':s2, 'empty':s3, 'filename':s4}
@@ -51,6 +51,6 @@ for n in range(starting_capacity, sum_capacities+1):
         break
 
 if len(rows) > 0:
-    excel.write_summary(f'{args.outpath}.xlsx', rows)
+    excel.write_summary(f'{args.outpath}/solindex.xlsx', rows)
 
     

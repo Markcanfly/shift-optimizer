@@ -30,7 +30,7 @@ for shift_props in shifts.values():
 
 starting_capacity = int(sum_capacities*0.7)
 
-Path(args.outpath).mkdir(parents=True, exist_ok=True)
+Path(args.outpath+'/sols').mkdir(parents=True, exist_ok=True)
 rows = [] # {'pref':s1, 'unfilled':s2, 'empty':s3, 'filename':s4}
 
 for n in range(starting_capacity, sum_capacities+1):
@@ -42,9 +42,10 @@ for n in range(starting_capacity, sum_capacities+1):
         if solver.StatusName() != 'OPTIMAL':
             print(' !SUBOPTIMAL SOLVE! Try to run with more time', end='')
         print()
-        xlsxfilepath = f'{args.outpath}/{n}.xlsx'
+        xlsxsubpath = f'sols/{n}.xlsx'
+        xlsxfilepath = f'{args.outpath}/{xlsxsubpath}'
         # Write to excel and add index for the root later
-        rows.append((xlsxfilepath, deepcopy(solver)))
+        rows.append((xlsxsubpath, deepcopy(solver)))
         excel.write_to_file(xlsxfilepath, shifts, prefs, solver.Values(), personal_reqs)
     else: # No more solutions to be found
         break

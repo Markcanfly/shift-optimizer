@@ -415,6 +415,27 @@ class ShiftSolver(cp_model.CpSolver):
     def PrefScore(self) -> float:
         return self.ObjectiveValue()
 
+    def PrefModes(self) -> int:
+        freq = dict()
+        pref = self.__model.pref_data
+
+        for (d,s,p), val in self.Values().items():
+            if val == 1: # Count the pref score
+                # Here we assume pref[d,s,p] is not None, because model can't assign None
+                if pref[d,s,p] not in freq.keys():
+                    freq[pref[d,s,p]] = 1
+                else:
+                    freq[pref[d,s,p]] += 1
+        # Find most common elements
+        maxfreq = max(freq.values())
+        modes = []
+        for pscore, count in freq.items():
+            if count == maxfreq:
+                modes.append(pscore)
+
+        return modes
+
+
     def EmptyShifts(self) -> int:
         assigned = self.Values()
         n_empty_shifts = 0

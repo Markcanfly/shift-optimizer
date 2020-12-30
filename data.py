@@ -122,7 +122,7 @@ def personal_reqs_from_groups(filename) -> dict:
         raise ValueError('One or more person_id is assigned to multiple groups.')
     
     return preqs
-        
+
 def hours_for_everyone(preferences, min_hours, max_hours) -> dict:
     """Create an hour specification for all people in the preferences,
     with equal required hours.
@@ -172,3 +172,24 @@ def solve_from_json_compatible(jsondict):
             for p, assigned_status in v2:
                 values[d,s,p] = assigned_status
     return values
+
+def empty_assignments(shifts, preferences):
+    """Generate empty assignments
+    Args:
+        shifts: dict of sdata[day_id, shift_id] = {
+            'capacity': 2,
+            'begin': 525,
+            'end': 960
+        }
+        preferences: dict of pref[day_id,shift_id,person_id] = pref_score
+    """
+    people = sorted(list(set([p for d,s,p in preferences.keys()])))
+
+    assignments = dict()
+
+    for d, s in shifts.keys():
+        for p in people:
+            assignments[d,s,p] = False
+    
+    return assignments
+

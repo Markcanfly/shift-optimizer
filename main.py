@@ -24,6 +24,7 @@ parser.add_argument('-t', '--timeout', help='The maximum time in seconds that th
 parser.add_argument('-v', '--verbose', help='Print some extra data about the solution.', action='store_true')
 parser.add_argument('-o', dest='outjson', help='Output the raw model output to a JSON file.')
 parser.add_argument('-x', dest='outxlsx', help='Output to an excel file.', type=str)
+parser.add_argument('--no-solve-required', dest='nosolve', help='If it can\'t solve, just create empty xlsx with prefs and shifts to adjust.', action='store_true')
 args = parser.parse_args()
 
 # Collect data from files
@@ -53,4 +54,5 @@ if solver.Solve(
     if args.outxlsx:
         assignments = solver.Values()
         excel.write_to_file(args.outxlsx, shifts, prefs, assignments, personal_reqs)
-    
+elif args.nosolve:
+    excel.write_to_file(args.outxlsx, shifts, prefs, data.empty_assignments(shifts, prefs), personal_reqs)

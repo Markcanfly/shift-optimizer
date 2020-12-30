@@ -357,7 +357,7 @@ def write_summary(filename: str, rows: Tuple[str, ShiftSolver]):
             (f'={(c_hours := celln(rowidx, 3))}/{(c_n_all_hours := celln(3,10))}', percentage_format),
             (solver.UnfilledCapacities(), None),
             (f'={(c_caps := celln(rowidx, 5))}/{(c_n_all_caps := celln(2,10))}', percentage_format),
-            (f'=IF(ISNUMBER({(c_caps_prev := celln(rowidx-1, 5))}),(-({c_pref}-{(c_pref_prev := celln(rowidx-1,0))})/({c_caps}-{c_caps_prev})),"")', None)
+            (f'=IF(ISNUMBER({(c_caps_prev := celln(rowidx-1, 5))}),IF(AND((({c_caps_prev}-{c_caps})<>0),(({(c_pref_prev := celln(rowidx-1,0))}-{c_pref})<>0)),(-({c_pref}-{c_pref_prev})/({c_caps}-{c_caps_prev})),""),"")', None)
             ]
         ):
             ws.write(rowidx, colidx, val, format_)

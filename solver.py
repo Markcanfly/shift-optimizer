@@ -61,7 +61,17 @@ class ShiftModel(cp_model.CpModel):
         """
         for d, shifts in self.shifts_for_day.items():
             for s in shifts:
-                self.AddLinearConstraint(sum(self.variables[(d, s, p)] for p in self.people), min, self.shift_data[(d,s)][0])
+                self.AddLinearConstraint(sum([self.variables[(d, s, p)] for p in self.people]), min, self.shift_data[(d,s)][0])
+
+    def AddMaxDailyShifts(self, n):
+        """Make sure that employees only get assigned to
+        maximum of n shifts on any given day.
+        Args:
+            n: the max number of shifts a person can work on any day.
+        """
+        for p in self.people:
+            for d, shifts in self.shifts_for_day.items():
+                self.Add(sum([self.variables[d,s,p] for s in shifts]) <= n)
 
     def AddMinimumFilledShiftRatio(self, ratio):
         """Make sure that at least ratio * sum(capacities) is filled.
@@ -93,7 +103,6 @@ class ShiftModel(cp_model.CpModel):
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
             self.AddLinearConstraint(work_mins, self.preq_data[p]['min']*60, self.preq_data[p]['max']*60)
 
-
     def AddLongShifts(self, length=300):
         """Make sure that everyone works at least n long shifts.
         Args:
@@ -116,7 +125,6 @@ class ShiftModel(cp_model.CpModel):
                 non_long_shifts = set(self.shift_data.keys()).difference(long_shifts)
                 for d, s in non_long_shifts:
                     self.Add(self.variables[d,s,p] == False)
-
 
     def AddLongShiftBreak(self, length=300):
         """Make sure that if you work a long shift, you're not gonna work
@@ -336,6 +344,7 @@ class ShiftSolver(cp_model.CpSolver):
         self.__model.AddMinimumCapacityFilledNumber(n=min_capacities_filled)
         self.__model.AddMinimumFilledShiftRatio(ratio=min_capacities_filled_ratio)
         self.__model.MaximizeWelfare(pref_function)
+        self.__model.AddMaxDailyShifts(1)
         self.parameters.max_time_in_seconds = timeout
         super().Solve(self.__model)
         if super().StatusName() in ('FEASIBLE', 'OPTIMAL'):

@@ -1,9 +1,11 @@
 """Handling of raw data from files"""
 import json
 import csv
+import requests
+from requests.auth import HTTPBasicAuth
 # TODO Handle file errors
 
-def shifts_from_json(shiftsjson) -> dict:
+def shifts_from_json(shift_dict) -> dict:
     """Read the shift data from a json,
     and return it in a solver-compatible format.
     Expects a json structured like such:
@@ -29,9 +31,6 @@ def shifts_from_json(shiftsjson) -> dict:
     def to_mins(t):
         return t[0]*60 + t[1]
 
-    with open(shiftsjson, 'r', encoding='utf8') as jsonfile:
-        shift_dict = json.load(jsonfile, )
-
     sdata = dict()
 
     for day_id, shifts in shift_dict.items():
@@ -43,6 +42,35 @@ def shifts_from_json(shiftsjson) -> dict:
             }
     
     return sdata
+
+def shifts_from_jsonfile(shiftsjson) -> dict:
+    """Read the shift data from a json,
+    and return it in a solver-compatible format.
+    Expects a json structured like such:
+        "Hétfő 04.": [
+        {
+            "capacity": 2,
+            "begin": [
+                8,
+                45
+            ],
+            "end": [
+                16,
+                0
+            ]
+        },...
+    Returns:
+        dict of sdata[day_id, shift_id] = {
+            'capacity': 2,
+            'begin': 525,
+            'end': 960
+        }
+    """
+
+    with open(shiftsjson, 'r', encoding='utf8') as jsonfile:
+        shift_dict = json.load(jsonfile, )
+
+    return shifts_from_json(shift_dict)
 
 def preferences_from_csv(prefcsv, shiftsjson) -> dict:
     """Read the preference data from a csv, 
@@ -77,6 +105,70 @@ def preferences_from_csv(prefcsv, shiftsjson) -> dict:
                         pref[unique_daynames[day_index], shift_id, person_id] = pref_score
     
     return pref
+
+def data_from_pageclip(foldername, urlname):
+    """Get all necessary data straight from the web
+    Expects a webdata.json formatted as such:
+    {
+    "website": "{INPUTSITE_URL}
+    "apikey": "{API_KEY}",
+    "groups": {
+        "Fulltimer": {
+            "long_shifts_only": true
+        },
+        "Diák": {
+            "long_shifts_only": false
+        }
+        }
+    }
+    Take care to use the most recent version of entry data from everyone.
+    Args:
+        urlname: the location
+    Returns:
+        (shifts, preferences, personal_reqs)
+    """
+    with open('webdata.json', 'r', encoding='utf8') as webdatafile:
+        webdata = json.load(webdatafile)
+
+    # Get shifts from inputsite
+    js = requests.get(f'{webdata["website"]}/{foldername}/{urlname}.js').text
+    shiftsraw = json.loads(js[js.index('{'):]) # beginning of JSON shifts
+    shifts = shifts_from_json(shiftsraw)
+
+    # Find urlname of form
+    # Awful blackmagicfuckery, but works for now
+    formurlname_begin = js.index('const urlname = "') + len('const urlname = "')
+    formurlname_end = js.index('"', formurlname_begin)
+    formurlname = js[formurlname_begin:formurlname_end]
+
+    response = requests.get(
+        f'https://api.pageclip.co/data/{formurlname}', # Prefdata from pageclip
+        auth=HTTPBasicAuth(webdata['apikey'],''),
+        headers={'Accept': 'application/vnd.pageclip.v1+json'},
+        params={'archived': False} # Don't get archived
+    )
+    
+    # Get prefs & preqs
+    rawdata = json.loads(response.text)
+    # Time order -> reversed, make sure latest mods are in the system
+    rows = [item['payload'] for item in list(reversed(rawdata['data']))]
+
+    # Get preferences & personal requirements
+    prefscore = dict()
+    preqs = dict()
+    for row in rows:
+        for d in shiftsraw.keys():
+            if row[d] != '': # No prefs for that day
+                for pref, shift in enumerate(list(map(int, row[d].split(",")))):
+                    prefscore[d,shift,row['email']] = pref
+        preqs[row['email']] = {
+            'min': list(map(int, row['hours'].split(',')))[0],
+            'max': list(map(int, row['hours'].split(',')))[1],
+            'min_long_shifts': webdata['groups'][row['group']]["min_long_shifts"],
+            'only_long_shifts': webdata['groups'][row['group']]["long_shifts_only"]
+        }
+    return (shifts, prefscore, preqs)
+
 
 def personal_reqs_from_groups(filename) -> dict:
     """Read the group data from a json,
@@ -192,4 +284,3 @@ def empty_assignments(shifts, preferences):
             assignments[d,s,p] = False
     
     return assignments
-

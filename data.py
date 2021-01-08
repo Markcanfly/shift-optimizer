@@ -151,8 +151,26 @@ def data_from_pageclip(foldername, urlname):
     # Get prefs & preqs
     rawdata = json.loads(response.text)
     # Time order -> reversed, make sure latest mods are in the system
-    rows = [item['payload'] for item in list(reversed(rawdata['data']))]
+    rows = [item['payload'] for item in rawdata['data']]
 
+    # Check 
+    # For now we need to manually delete the old inputs
+    # Because I am unsure of dealing with str timestamps
+    pid_count = dict()
+    for row in rows:
+        pid = row['email']
+        if pid not in pid_count:
+            pid_count[pid] = 1
+        else:
+            pid_count[pid] += 1
+
+    duplicate_emails = set()
+    for pid, n in pid_count.items():
+        if n > 1:
+            duplicate_emails.add(pid)
+    if len(duplicate_emails) > 0:
+        raise ValueError(f"Duplicate email addresses found: {duplicate_emails}")
+    
     # Get preferences & personal requirements
     prefscore = dict()
     preqs = dict()

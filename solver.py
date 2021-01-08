@@ -40,9 +40,7 @@ class ShiftModel(cp_model.CpModel):
         
         # Add must-have-constraints
         self.AddPrefOnly()
-        self.AddLongShiftBreak()
         self.AddNoConflict()
-        self.AddSleep()
         self.AddWorkMinutes()
 
     def AddPrefOnly(self):
@@ -358,6 +356,8 @@ class ShiftSolver(cp_model.CpSolver):
         self.__model.AddMinimumCapacityFilledNumber(n=min_capacities_filled)
         self.__model.AddMinimumFilledShiftRatio(ratio=min_capacities_filled_ratio)
         self.__model.MaximizeWelfare(pref_function)
+        self.__model.AddLongShiftBreak()
+        self.__model.AddSleep()
         self.__model.AddMaxDailyShifts(1)
         self.__model.AddMaxWorkdays(5)
         self.parameters.max_time_in_seconds = timeout

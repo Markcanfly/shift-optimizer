@@ -22,7 +22,7 @@ sum_capacities = 0
 for shift_props in shifts.values():
     sum_capacities += shift_props['capacity']
 
-starting_capacity = int(sum_capacities*0.75)
+starting_capacity = int(sum_capacities*0.85)
 
 Path(args.urlname+'/sols').mkdir(parents=True, exist_ok=True)
 rows = [] # {'pref':s1, 'unfilled':s2, 'empty':s3, 'filename':s4}

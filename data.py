@@ -3,7 +3,18 @@ import json
 import csv
 import requests
 from requests.auth import HTTPBasicAuth
-# TODO Handle file errors
+
+def filter_unique_ordered(l):
+    """Filter a list so that the items are unique.
+    When an item appears more than once, the first occurrence will be retained.
+    """
+    occured = set()
+    filtered = []
+    for elem in l:
+        if elem not in occured:
+            occured.add(elem)
+            filtered.append(elem)
+    return filtered
 
 def shifts_from_json(shift_dict) -> dict:
     """Read the shift data from a json,
@@ -176,8 +187,9 @@ def data_from_pageclip(foldername, urlname):
     preqs = dict()
     for row in rows:
         for d in shiftsraw.keys():
-            if row[d] != '': # No prefs for that day
-                for pref, shift in enumerate(list(map(int, row[d].split(",")))):
+            if row['day_prefs'][d] != '': # No prefs for that day
+                pref_order = filter_unique_ordered(list(map(int, row['day_prefs'][d].split(","))))
+                for pref, shift in enumerate(pref_order):
                     prefscore[d,shift,row['email']] = pref
         preqs[row['email']] = {
             'min': list(map(int, row['hours'].split(',')))[0],

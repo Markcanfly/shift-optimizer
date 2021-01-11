@@ -154,7 +154,7 @@ def data_from_pageclip(foldername, urlname):
 
     response = requests.get(
         f'https://api.pageclip.co/data/{formurlname}', # Prefdata from pageclip
-        auth=HTTPBasicAuth(webdata['apikey'],''),
+        auth=HTTPBasicAuth(webdata['pageclip-key'],''),
         headers={'Accept': 'application/vnd.pageclip.v1+json'},
         params={'archived': False} # Don't get archived
     )

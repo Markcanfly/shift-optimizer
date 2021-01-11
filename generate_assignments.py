@@ -16,7 +16,7 @@ args = parser.parse_args()
 
 # Collect data from files
 shifts, prefs, personal_reqs = data.data_from_pageclip(args.dirpath, args.urlname)
-
+print('Webdata received.')
 # Optionally remove some people from the solve
 if args.removed is not None:
     # Remove from prefs

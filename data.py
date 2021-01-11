@@ -314,3 +314,20 @@ def empty_assignments(shifts, preferences):
             assignments[d,s,p] = False
     
     return assignments
+
+def override_preqs(filename, preqs):
+    """Use the .json file at the given path to override the personal reqs dict
+    Args:
+    filename: the JSON file to override with
+    preqs: the preqs[person_id] = {
+            'min': n1, 
+            'max': n2, 
+            'min_long_shifts': n3, 
+            'only_long_shifts': bool1
+            } dict to override
+    """
+    with open(filename, 'r', encoding='utf8') as jsonfile:
+        override = json.load(jsonfile)
+    
+    for person in override:
+        preqs[person] = override[person]

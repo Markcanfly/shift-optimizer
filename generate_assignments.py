@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('dirpath', help='The path of the directory of the inputsite. This should contain the js file with the shifts.', type=str)
 parser.add_argument('urlname', help='The name of the form in the directory.', type=str)
 parser.add_argument('--no-solve', dest='nosolve', help="Don't solve, just create the overview excel.", action='store_true')
+parser.add_argument('--override', help='Path of the .json file with the override values for personal requirements.', type=str)
 parser.add_argument('-t', '--timeout', help='The maximum time in seconds that the solver can take to find an optimal solution.', default=None, type=int)
 parser.add_argument('-r', dest='removed', nargs='+', help='Space-separated email addresses to omit from the solve.', type=str)
 args = parser.parse_args()
@@ -27,6 +28,10 @@ if args.removed is not None:
     for p in list(personal_reqs.keys()):
         if p in args.removed:
             del personal_reqs[p]
+
+# Optionally override preqs
+if args.override is not None:
+    data.override_preqs(args.override, personal_reqs)
 
 solver = ShiftSolver(shifts=shifts, preferences=prefs, personal_reqs=personal_reqs)
 

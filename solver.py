@@ -339,7 +339,7 @@ class ShiftSolver(cp_model.CpSolver):
         self.personal_reqs = personal_reqs
         self.__model = None
     
-    def Solve(self, min_workers: int, min_capacities_filled: int = 0, min_capacities_filled_ratio: float = 0, pref_function=lambda x:x, timeout=10) -> bool:
+    def Solve(self, min_workers: int, min_capacities_filled: int = 0, min_capacities_filled_ratio: float = 0, pref_function=lambda x:x, timeout=None) -> bool:
         """ 
         Args:
             min_workers: The minimum number of workers that have to be assigned to every shift
@@ -360,7 +360,8 @@ class ShiftSolver(cp_model.CpSolver):
         self.__model.AddSleep()
         self.__model.AddMaxDailyShifts(1)
         self.__model.AddMaxWorkdays(5)
-        self.parameters.max_time_in_seconds = timeout
+        if timeout is not None:
+            self.parameters.max_time_in_seconds = timeout
         super().Solve(self.__model)
         if super().StatusName() in ('FEASIBLE', 'OPTIMAL'):
             return True

@@ -60,6 +60,11 @@ if not args.nosolve:
             # Write to excel and add index for the root later
             rows.append((xlsxsubpath, deepcopy(solver)))
             excel.write_to_file(xlsxfilepath, shifts, prefs, solver.Values(), personal_reqs)
+
+            with open(f'{args.urlname}/sols/{n}.json', 'w', encoding='utf8') as jsonfile:
+                json.dump(data.json_compatible_solve(solver.Values()), jsonfile, indent=4, ensure_ascii=False)
+        
+
         else: # No more solutions to be found
             break
 

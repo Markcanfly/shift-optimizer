@@ -42,7 +42,9 @@ for shift_props in shifts.values():
 
 starting_capacity = int(sum_capacities*0.85)
 
-Path(args.urlname+'/sols').mkdir(parents=True, exist_ok=True)
+subfolderpath = f"{args.urlname}-{args.dirpath}"
+
+Path(subfolderpath+'/sols').mkdir(parents=True, exist_ok=True)
 rows = [] # {'pref':s1, 'unfilled':s2, 'empty':s3, 'filename':s4}
 
 if not args.nosolve:
@@ -56,12 +58,12 @@ if not args.nosolve:
                 print(' !SUBOPTIMAL SOLVE! Try to run with more time', end='')
             print()
             xlsxsubpath = f'sols/{n}.xlsx'
-            xlsxfilepath = f'{args.urlname}/{xlsxsubpath}'
+            xlsxfilepath = f'{subfolderpath}/{xlsxsubpath}'
             # Write to excel and add index for the root later
             rows.append((xlsxsubpath, deepcopy(solver)))
             excel.write_to_file(xlsxfilepath, shifts, prefs, solver.Values(), personal_reqs)
 
-            with open(f'{args.urlname}/sols/{n}.json', 'w', encoding='utf8') as jsonfile:
+            with open(f'{subfolderpath}/sols/{n}.json', 'w', encoding='utf8') as jsonfile:
                 json.dump(data.json_compatible_solve(solver.Values()), jsonfile, indent=4, ensure_ascii=False)
         
 
@@ -69,8 +71,8 @@ if not args.nosolve:
             break
 
     if len(rows) > 0:
-        excel.write_summary(f'{args.urlname}/solindex.xlsx', rows)
+        excel.write_summary(f'{subfolderpath}/solindex.xlsx', rows)
 else: # Nosolve invoked
-    excel.write_to_file(f'{args.urlname}.xlsx', shifts, prefs, data.empty_assignments(shifts, prefs), personal_reqs)
+    excel.write_to_file(f'{subfolderpath}.xlsx', shifts, prefs, data.empty_assignments(shifts, prefs), personal_reqs)
 
 

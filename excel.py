@@ -72,6 +72,7 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
     # Preferences
     people = get_people(preferences)
     n_people = len(people)
+    percentage_format = workbook.add_format({'num_format': '0.00%'})
     
     # Add default none values to preferences dict
     for d,s in shifts.keys():
@@ -90,6 +91,22 @@ def write_to_file(filename, shifts, preferences, assignments, personal_reqs):
         for colidx, p in enumerate(people, start=1):
             pref_ws.write(rowidx, colidx, preferences[d,s,p])
     
+    ## % of shifts registered to last row
+    pref_ws.write(n_shifts+1,0, "Registered%")
+    for pidx in range(1, n_people + 1):
+        pref_ws.write_formula(n_shifts + 1, pidx,
+        ''.join(f'''=IF(
+                NOT(
+                    VLOOKUP({celln(0, pidx)},
+                    personal_reqs!{celln(1,0)}:{celln(n_people,4)},
+                    5)
+                ),
+                COUNT({celln(1,pidx)}:{celln(n_shifts,pidx)})/{n_shifts},
+                COUNT({celln(1,pidx)}:{celln(n_shifts,pidx)})/COUNTIF(assignments!{celln(1,n_people+3)}:{celln(n_shifts,n_people+3)},"Long")
+            )
+            '''.split()), cell_format=percentage_format)
+
+
     # Personal requirements
     pers_ws = workbook.add_worksheet(name="personal_reqs")
     ## Headers

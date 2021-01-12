@@ -40,4 +40,12 @@ if not wiwcreds:
 
 # We've authenticated, time to make requests.
 
+# Build a dict of email:userids for shift assignment
+userid = dict()
+response = requests.get('https://api.wheniwork.com/2/users', headers={"W-Token": wiwcreds['token']})
+if response.status_code == 200:
+    users = json.loads(response.text)
+    for user in users:
+        userid[user['email']] = user['id']
+
 

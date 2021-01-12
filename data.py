@@ -74,7 +74,9 @@ def shifts_from_jsonfile(shiftsjson) -> dict:
         dict of sdata[day_id, shift_id] = {
             'capacity': 2,
             'begin': 525,
-            'end': 960
+            'end': 960,
+            'begintime': unixtime,
+            'endtime': unixtime
         }
     """
 
@@ -199,7 +201,6 @@ def data_from_pageclip(foldername, urlname):
         }
     return (shifts, prefscore, preqs)
 
-
 def personal_reqs_from_groups(filename) -> dict:
     """Read the group data from a json,
     and return it in a solver-compatible format.
@@ -292,7 +293,7 @@ def solve_from_json_compatible(jsondict):
     for d, v1 in jsondict.items():
         for s, v2 in v1.items():
             for p, assigned_status in v2:
-                values[d,s,p] = assigned_status
+                values[d,int(s),p] = assigned_status
     return values
 
 def empty_assignments(shifts, preferences):

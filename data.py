@@ -36,7 +36,9 @@ def shifts_from_json(shift_dict) -> dict:
         dict of sdata[day_id, shift_id] = {
             'capacity': 2,
             'begin': 525,
-            'end': 960
+            'end': 960,
+            'begintime': unixtime,
+            'endtime': unixtime
         }
     """
     def to_mins(t):
@@ -49,7 +51,9 @@ def shifts_from_json(shift_dict) -> dict:
             sdata[day_id,shift_id] = {
                 'capacity': shift['capacity'],
                 'begin': to_mins(shift['begin']),
-                'end': to_mins(shift['end'])
+                'end': to_mins(shift['end']),
+                'begintime': shift['begintime'],
+                'endtime': shift['endtime']
             }
     
     return sdata

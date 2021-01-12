@@ -25,15 +25,16 @@ if os.path.exists('wiwtoken.pickle'):
 if not wiwcreds:
     # No token found, use wiwcreds.json
     with open('wiwcreds.json', 'r') as credsfile:
-        wiwcreds = json.load(credsfile)
+        local_creds = json.load(credsfile)
         response = requests.post(
             'https://api.login.wheniwork.com/login',
             headers={
-                "W-Key": wiwcreds['apikey'],
+                "W-Key": local_creds['apikey'],
                 'content-type': 'application/json'
             },
-            data='{"email":"'+wiwcreds['email']+'","password":"'+wiwcreds['password']+'"}',
+            data='{"email":"'+local_creds['email']+'","password":"'+local_creds['password']+'"}',
         )
+        wiwcreds = json.loads(response.text)
     # If auth was successful, store token
     if response.status_code == 200:
         with open('wiwtoken.pickle', 'wb') as wiwtokenfile:
@@ -46,9 +47,15 @@ if not wiwcreds:
 
 # Build a dict of email:userids for shift assignment
 userid = dict()
+location_id = None
 response = requests.get('https://api.wheniwork.com/2/users', headers={"W-Token": wiwcreds['token']})
 if response.status_code == 200:
-    users = json.loads(response.text)
+    rawusers = json.loads(response.text)
+    users = rawusers['users']
+    if len(rawusers['locations']) <= 1:
+        location_id = rawusers['locations'][0]['id'] # Assume we only have one location
+    else:
+        raise ValueError('Multiple locations found:' + [location['id'] for location in rawusers['locations']])
     for user in users:
         # userid[user['email']] = user['id']
         userid[user['email']] = 100 # Constant for testing
@@ -79,7 +86,8 @@ if response.status_code == 200:
     for osr in onlineshiftsraw['shifts']:
         onlineshifts.append(
             {
-                'user_id':osr['user_id'], 
+                'user_id': osr['user_id'],
+                'location_id': osr['location_id'],
                 'start_time': dtparse(osr['start_time']).timestamp(),
                 'end_time': dtparse(osr['end_time']).timestamp()
             }
@@ -108,6 +116,7 @@ shifts_to_add = []
 for d,s,p in assigned:
     sdata = {
         'user_id': 100, # TODO after testing set to ID from dict
+        'location_id': location_id,
         'start_time': shifts[d,s]['begintime'],
         'end_time': shifts[d,s]['endtime']
     }

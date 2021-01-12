@@ -61,29 +61,37 @@ class ShiftModel(cp_model.CpModel):
             for s in shifts:
                 self.AddLinearConstraint(sum([self.variables[(d, s, p)] for p in self.people]), min, self.shift_data[(d,s)][0])
 
-    def AddMaxWorkdays(self, n):
-        """Make sure that nobody works on more than a given number of days.
+    def AddMaxNShifts(self, n):
+        """Make sure that everyone takes as most n shifts.
         Args:
-            n: the maximum number of words
+            n
         """
         for p in self.people:
-            day_shift_variables = dict()
-            for d in self.shifts_for_day:
-                # Assign the daily boolvars
-                day_shift_variables[d] = [self.variables[d,s,p] for s in self.shifts_for_day[d]]
-            # Sum of works_on_day for all days is 0<x<n
-            self.AddLinearConstraint(sum(max(day_shift_variables[d]) for d in self.shifts_for_day), 0, n)
+            self.AddLinearConstraint(sum([self.variables[d,s,p] for d,s in self.shift_data.keys()]),0,n)
 
+    # Replaced with AddMaxNShifts
+    # def AddMaxWorkdays(self, n):
+    #     """Make sure that nobody works on more than a given number of days.
+    #     Args:
+    #         n: the maximum number of words
+    #     """
+    #     for p in self.people:
+    #         day_shift_variables = dict()
+    #         for d in self.shifts_for_day:
+    #             # Assign the daily boolvars
+    #             day_shift_variables[d] = [self.variables[d,s,p] for s in self.shifts_for_day[d]]
+    #         # Sum of works_on_day for all days is 0<x<n
+    #         self.AddLinearConstraint(sum(max(day_shift_variables[d]) for d in self.shifts_for_day), 0, n)
 
-    def AddMaxDailyShifts(self, n):
-        """Make sure that employees only get assigned to
-        maximum of n shifts on any given day.
-        Args:
-            n: the max number of shifts a person can work on any day.
-        """
-        for p in self.people:
-            for d, shifts in self.shifts_for_day.items():
-                self.Add(sum([self.variables[d,s,p] for s in shifts]) <= n)
+    # def AddMaxDailyShifts(self, n):
+    #     """Make sure that employees only get assigned to
+    #     maximum of n shifts on any given day.
+    #     Args:
+    #         n: the max number of shifts a person can work on any day.
+    #     """
+    #     for p in self.people:
+    #         for d, shifts in self.shifts_for_day.items():
+    #             self.Add(sum([self.variables[d,s,p] for s in shifts]) <= n)
 
     def AddMinimumFilledShiftRatio(self, ratio):
         """Make sure that at least ratio * sum(capacities) is filled.
@@ -358,8 +366,7 @@ class ShiftSolver(cp_model.CpSolver):
         self.__model.MaximizeWelfare(pref_function)
         self.__model.AddLongShiftBreak()
         self.__model.AddSleep()
-        self.__model.AddMaxDailyShifts(1)
-        self.__model.AddMaxWorkdays(5)
+        self.__model.AddMaxNShifts(5)
         if timeout is not None:
             self.parameters.max_time_in_seconds = timeout
         super().Solve(self.__model)

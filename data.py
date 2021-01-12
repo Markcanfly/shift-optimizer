@@ -292,7 +292,7 @@ def solve_from_json_compatible(jsondict):
     values = dict()
     for d, v1 in jsondict.items():
         for s, v2 in v1.items():
-            for p, assigned_status in v2:
+            for p, assigned_status in v2.items():
                 values[d,int(s),p] = assigned_status
     return values
 

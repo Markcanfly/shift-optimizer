@@ -12,6 +12,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('dirpath', help='The path of the directory of the inputsite. This should contain the js file with the shifts.', type=str)
 parser.add_argument('urlname', help='The name of the form in the directory.', type=str)
 parser.add_argument('solvepath', help='Path to the .json file with the solution.', type=str)
+parser.add_argument('-a', '--revert-on-fail', dest='revert', help='Revert all updates in case one fails.', action='store_true')
 args = parser.parse_args()
 
 wiwcreds = None
@@ -32,7 +33,6 @@ if not wiwcreds:
                 'content-type': 'application/json'
             },
             data='{"email":"'+wiwcreds['email']+'","password":"'+wiwcreds['password']+'"}',
-            
         )
     # If auth was successful, store token
     if response.status_code == 200:
@@ -113,3 +113,36 @@ for d,s,p in assigned:
             'end_time': shifts[d,s]['endtime']
         }
     )
+
+failed = []
+successful = []
+for shift in shifts_to_add: # Upload shifts
+    response = requests.post(
+        'https://api.wheniwork.com/2/shifts',
+        headers={
+                "W-Key": wiwcreds['apikey'],
+                'content-type': 'application/json'
+            },
+        data=json.dumps(shift)
+    )
+    if response.status_code == 200:
+        successful.append(response)
+    else:
+        failed.append((shift,response))
+        if args.revert:
+            # Revert all successful uploads
+            for resp in successful:
+                sid = json.loads(resp.text)['shift']['id']
+                print(f'Reverting shift with id {sid}...')
+                requests.delete(
+                    f'https://api.wheniwork.com/2/shifts/{sid}',
+                    headers={"W-Key": wiwcreds['apikey']})
+            exit(1)
+
+print('Shifts uploaded succesfully:')
+for resp in successful:
+    sid = json.loads(resp.text)['shift']['id']
+    print('    ' + sid)
+print('Failed:')
+for shift, resp in failed:
+    print(f'{shift}[{resp.status_code}] {resp.text}')

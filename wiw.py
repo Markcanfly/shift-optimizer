@@ -106,13 +106,13 @@ assigned = [(d,s,p) for (d,s,p) in assignments.keys() if assignments[d,s,p]]
 
 shifts_to_add = []
 for d,s,p in assigned:
-    shifts_to_add.append(
-        {
-            'user_id': 100, # TODO after testing set to ID from dict
-            'start_time': shifts[d,s]['begintime'],
-            'end_time': shifts[d,s]['endtime']
-        }
-    )
+    sdata = {
+        'user_id': 100, # TODO after testing set to ID from dict
+        'start_time': shifts[d,s]['begintime'],
+        'end_time': shifts[d,s]['endtime']
+    }
+    if sdata not in onlineshifts: # Don't create duplicate shift
+        shifts_to_add.append(sdata)
 
 failed = []
 successful = []

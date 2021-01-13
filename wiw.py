@@ -109,7 +109,7 @@ elif os.path.exists(args.solvepath):
 else:
     raise FileNotFoundError('Solution JSON file not found.')
 
-assigned = [(d,s,p) for (d,s,p) in assignments.keys() if assignments[d,s,p]]
+assigned = [(d,s,p) for (d,s,p) in assignments.keys() if assignments[d,s,p] == True]
 
 shifts_to_add = []
 for d,s,p in assigned:

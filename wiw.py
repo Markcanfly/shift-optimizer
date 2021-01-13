@@ -57,8 +57,7 @@ if response.status_code == 200:
     else:
         raise ValueError('Multiple locations found:' + [location['id'] for location in rawusers['locations']])
     for user in users:
-        # userid[user['email']] = user['id']
-        userid[user['email']] = 100 # Constant for testing
+        userid[user['email']] = user['id']
 else:
     raise Exception('Failed to get userlist.')
 

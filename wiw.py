@@ -6,7 +6,7 @@ import requests
 import pickle
 import os.path
 from dateutil.parser import parse as dtparse
-import datetime
+from datetime import datetime as dt
 
 parser = argparse.ArgumentParser()
 parser.add_argument('dirpath', help='The path of the directory of the inputsite. This should contain the js file with the shifts.', type=str)
@@ -68,7 +68,7 @@ else:
 ## Get shiftdata
 shifts, prefs, preqs = data.data_from_pageclip(args.dirpath, args.urlname)
 ## Find timerange to search in
-searchbegin = shifts.values()[0]['begintime']
+searchbegin = list(shifts.values())[0]['begintime']
 searchend = 0
 for shift in shifts.values():
     searchbegin = min(searchbegin, shift['begintime'])
@@ -78,7 +78,7 @@ for shift in shifts.values():
 response = requests.get(
     'https://api.wheniwork.com/2/shifts', 
     headers={"W-Token": wiwcreds['token']},
-    params={'start':str(searchbegin), 'end':str(searchend)}
+    params={'start':dt.fromtimestamp(searchbegin).isoformat(), 'end':dt.fromtimestamp(searchend).isoformat()}
     )
 if response.status_code == 200:
     onlineshiftsraw = json.loads(response.text)

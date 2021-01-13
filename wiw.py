@@ -108,7 +108,7 @@ if os.path.exists(f'{args.urlname}-{args.dirpath}/sols/{args.solvepath}'): # Loo
         assignments = data.solve_from_json_compatible(json.load(solvefile))
 elif os.path.exists(args.solvepath):
     with open(args.solvepath, 'r', encoding='utf8') as solvefile:
-        assignments = data.solve_from_json_compatible(json.loads(solvefile))
+        assignments = data.solve_from_json_compatible(json.load(solvefile))
 else:
     raise FileNotFoundError('Solution JSON file not found.')
 

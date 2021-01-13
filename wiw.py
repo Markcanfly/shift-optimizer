@@ -88,8 +88,8 @@ if response.status_code == 200:
             {
                 'user_id': osr['user_id'],
                 'location_id': osr['location_id'],
-                'start_time': dtparse(osr['start_time']).timestamp(),
-                'end_time': dtparse(osr['end_time']).timestamp()
+                'start_time': dtparse(osr['start_time']).isoformat(),
+                'end_time': dtparse(osr['end_time']).isoformat()
             }
         )
 else:
@@ -117,8 +117,8 @@ for d,s,p in assigned:
     sdata = {
         'user_id': 100, # TODO after testing set to ID from dict
         'location_id': location_id,
-        'start_time': shifts[d,s]['begintime'],
-        'end_time': shifts[d,s]['endtime']
+        'start_time': dt.fromtimestamp(shifts[d,s]['begintime']).isoformat(),
+        'end_time': dt.fromtimestamp(shifts[d,s]['endtime']).isoformat()
     }
     if sdata not in onlineshifts: # Don't create duplicate shift
         shifts_to_add.append(sdata)

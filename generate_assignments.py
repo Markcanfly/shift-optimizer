@@ -73,6 +73,6 @@ if not args.nosolve:
     if len(rows) > 0:
         excel.write_summary(f'{subfolderpath}/solindex.xlsx', rows)
 else: # Nosolve invoked
-    excel.write_to_file(f'{subfolderpath}.xlsx', shifts, prefs, data.empty_assignments(shifts, prefs), personal_reqs)
+    excel.write_to_file(f'{subfolderpath}/overview.xlsx', shifts, prefs, data.empty_assignments(shifts, prefs), personal_reqs)
 
 

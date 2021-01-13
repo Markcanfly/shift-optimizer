@@ -36,7 +36,9 @@ def shifts_from_json(shift_dict) -> dict:
         dict of sdata[day_id, shift_id] = {
             'capacity': 2,
             'begin': 525,
-            'end': 960
+            'end': 960,
+            'begintime': unixtime,
+            'endtime': unixtime
         }
     """
     def to_mins(t):
@@ -49,7 +51,9 @@ def shifts_from_json(shift_dict) -> dict:
             sdata[day_id,shift_id] = {
                 'capacity': shift['capacity'],
                 'begin': to_mins(shift['begin']),
-                'end': to_mins(shift['end'])
+                'end': to_mins(shift['end']),
+                'begintime': shift['begintime'],
+                'endtime': shift['endtime']
             }
     
     return sdata
@@ -74,7 +78,9 @@ def shifts_from_jsonfile(shiftsjson) -> dict:
         dict of sdata[day_id, shift_id] = {
             'capacity': 2,
             'begin': 525,
-            'end': 960
+            'end': 960,
+            'begintime': unixtime,
+            'endtime': unixtime
         }
     """
 
@@ -199,7 +205,6 @@ def data_from_pageclip(foldername, urlname):
         }
     return (shifts, prefscore, preqs)
 
-
 def personal_reqs_from_groups(filename) -> dict:
     """Read the group data from a json,
     and return it in a solver-compatible format.
@@ -291,8 +296,8 @@ def solve_from_json_compatible(jsondict):
     values = dict()
     for d, v1 in jsondict.items():
         for s, v2 in v1.items():
-            for p, assigned_status in v2:
-                values[d,s,p] = assigned_status
+            for p, assigned_status in v2.items():
+                values[d,int(s),p] = assigned_status
     return values
 
 def empty_assignments(shifts, preferences):

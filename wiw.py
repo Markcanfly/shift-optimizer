@@ -132,7 +132,7 @@ for shift in shifts_to_add: # Upload shifts
     response = requests.post(
         'https://api.wheniwork.com/2/shifts',
         headers={
-                "W-Key": wiwcreds['apikey'],
+                "W-Token": wiwcreds['token'],
                 "W-UserId": wiwcreds['UserId'],
                 'content-type': 'application/json'
             },
@@ -155,7 +155,7 @@ for shift in shifts_to_add: # Upload shifts
 print('Shifts uploaded succesfully:')
 for resp in successful:
     sid = json.loads(resp.text)['shift']['id']
-    print('    ' + sid)
+    print(sid)
 print('Failed:')
 for shift, resp in failed:
     print(f'{shift}[{resp.status_code}] {resp.text}')

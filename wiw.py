@@ -35,6 +35,8 @@ if not wiwcreds:
             data='{"email":"'+local_creds['email']+'","password":"'+local_creds['password']+'"}',
         )
         wiwcreds = json.loads(response.text)
+        wiwcreds['UserId'] = local_creds['UserId']
+        wiwcreds['posID'] = local_creds['cs_position_id']
     # If auth was successful, store token
     if response.status_code == 200:
         with open('wiwtoken.pickle', 'wb') as wiwtokenfile:
@@ -48,7 +50,7 @@ if not wiwcreds:
 # Build a dict of email:userids for shift assignment
 userid = dict()
 location_id = None
-response = requests.get('https://api.wheniwork.com/2/users', headers={"W-Token": wiwcreds['token']})
+response = requests.get('https://api.wheniwork.com/2/users', headers={"W-Token": wiwcreds['token'], "W-UserId": wiwcreds['UserId']})
 if response.status_code == 200:
     rawusers = json.loads(response.text)
     users = rawusers['users']
@@ -76,7 +78,7 @@ for shift in shifts.values():
 ## Get list of shifts in timerange
 response = requests.get(
     'https://api.wheniwork.com/2/shifts', 
-    headers={"W-Token": wiwcreds['token']},
+    headers={"W-Token": wiwcreds['token'], "W-UserId": wiwcreds['UserId']},
     params={'start':dt.fromtimestamp(searchbegin).isoformat(), 'end':dt.fromtimestamp(searchend).isoformat()}
     )
 if response.status_code == 200:
@@ -87,6 +89,7 @@ if response.status_code == 200:
             {
                 'user_id': osr['user_id'],
                 'location_id': osr['location_id'],
+                'position_id': wiwcreds['posID'],
                 'start_time': dtparse(osr['start_time']).isoformat(),
                 'end_time': dtparse(osr['end_time']).isoformat()
             }
@@ -114,8 +117,9 @@ assigned = [(d,s,p) for (d,s,p) in assignments.keys() if assignments[d,s,p] == T
 shifts_to_add = []
 for d,s,p in assigned:
     sdata = {
-        'user_id': 100, # TODO after testing set to ID from dict
+        'user_id': userid[p],
         'location_id': location_id,
+        'position_id': wiwcreds['posID'],
         'start_time': dt.fromtimestamp(shifts[d,s]['begintime']).isoformat(),
         'end_time': dt.fromtimestamp(shifts[d,s]['endtime']).isoformat()
     }
@@ -129,6 +133,7 @@ for shift in shifts_to_add: # Upload shifts
         'https://api.wheniwork.com/2/shifts',
         headers={
                 "W-Key": wiwcreds['apikey'],
+                "W-UserId": wiwcreds['UserId'],
                 'content-type': 'application/json'
             },
         data=json.dumps(shift)
@@ -144,7 +149,7 @@ for shift in shifts_to_add: # Upload shifts
                 print(f'Reverting shift with id {sid}...')
                 requests.delete(
                     f'https://api.wheniwork.com/2/shifts/{sid}',
-                    headers={"W-Key": wiwcreds['apikey']})
+                    headers={"W-Key": wiwcreds['apikey'], "W-UserId": wiwcreds['UserId']})
             exit(1)
 
 print('Shifts uploaded succesfully:')

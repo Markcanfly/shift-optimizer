@@ -152,10 +152,12 @@ for shift in shifts_to_add: # Upload shifts
                     headers={"W-Key": wiwcreds['apikey'], "W-UserId": wiwcreds['UserId']})
             exit(1)
 
-print('Shifts uploaded succesfully:')
-for resp in successful:
-    sid = json.loads(resp.text)['shift']['id']
-    print(sid)
-print('Failed:')
-for shift, resp in failed:
-    print(f'{shift}[{resp.status_code}] {resp.text}')
+if len(successful) > 0:
+    print('Shifts uploaded succesfully:')
+    for resp in successful:
+        sid = json.loads(resp.text)['shift']['id']
+        print(sid)
+if len(failed) > 0:
+    print('Failed:')
+    for shift, resp in failed:
+        print(f'{shift}[{resp.status_code}] {resp.text}')

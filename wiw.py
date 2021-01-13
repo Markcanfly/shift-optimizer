@@ -12,6 +12,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('dirpath', help='The path of the directory of the inputsite. This should contain the js file with the shifts.', type=str)
 parser.add_argument('urlname', help='The name of the form in the directory.', type=str)
 parser.add_argument('solvepath', help='Path to the .json file with the solution.', type=str)
+parser.add_argument('-v', '--verbose', action='store_true')
 parser.add_argument('-a', '--revert-on-fail', dest='revert', help='Revert all updates in case one fails.', action='store_true')
 args = parser.parse_args()
 
@@ -140,6 +141,8 @@ for shift in shifts_to_add: # Upload shifts
     )
     if response.status_code == 200:
         successful.append(response)
+        if args.verbose:
+            print(json.loads(response.text)['shift']['id'])
     else:
         failed.append((shift,response))
         if args.revert:

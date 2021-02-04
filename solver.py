@@ -41,7 +41,6 @@ class ShiftModel(cp_model.CpModel):
         # Add must-have-constraints
         self.AddPrefOnly()
         self.AddNoConflict()
-        self.AddWorkMinutes()
 
     def AddPrefOnly(self):
         """Make sure that employees only get assigned to a shift
@@ -105,9 +104,8 @@ class ShiftModel(cp_model.CpModel):
         """
         self.Add(sum([assigned_val for assigned_val in self.variables.values()]) >= n)
 
-    def AddWorkMinutes(self):
-        """Make sure that everyone works the minimum number of minutes,
-        and no one works too much.
+    def AddMinMinutes(self):
+        """Make sure that everyone works their minimum number of minutes.
         This is determined by the hdata dictionary.
         """
         mins_of_shift = dict() # calculate shift hours
@@ -121,7 +119,24 @@ class ShiftModel(cp_model.CpModel):
             for d, shifts in self.shifts_for_day.items():
                 for s in shifts:
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
-            self.AddLinearConstraint(work_mins, self.preq_data[p]['min']*60, self.preq_data[p]['max']*60)
+            self.Add(work_mins >= self.preq_data[p]['min']*60)
+
+    def AddMaxMinutes(self):
+        """Make sure that everyone works less than their maximum number of minutes.
+        This is determined by the hdata dictionary.
+        """
+        mins_of_shift = dict() # calculate shift hours
+
+        for (d,s),(c, begin, end) in self.shift_data.items():
+            del c # Capacity is not used here
+            mins_of_shift[(d,s)] = end - begin
+        
+        for p in self.people:
+            work_mins = 0
+            for d, shifts in self.shifts_for_day.items():
+                for s in shifts:
+                    work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
+            self.Add(work_mins <= self.preq_data[p]['max']*60)
 
     def AddLongShifts(self, length=300):
         """Make sure that everyone works at least n long shifts.
@@ -366,6 +381,8 @@ class ShiftSolver(cp_model.CpSolver):
         self.__model.MaximizeWelfare(pref_function)
         self.__model.AddLongShiftBreak()
         self.__model.AddSleep()
+        self.__model.AddMinMinutes()
+        self.__model.AddMaxMinutes()
         self.__model.AddMaxNShifts(5)
         self.__model.AddMaxDailyShifts(1)
         if timeout is not None:

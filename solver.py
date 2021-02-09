@@ -1,6 +1,6 @@
 from ortools.sat.python import cp_model
 from data import preferences_from_csv, shifts_from_json
-from itertools import combinations
+from itertools import combinations, product
 
 def get_printable_time(minutes):
     hours = minutes // 60
@@ -182,14 +182,8 @@ class ShiftModel(cp_model.CpModel):
         if they had a shift last evening.
         """ # WARN Without a catalog of all days in the week, this fails when the days are nonconsecutive.
         
-        conflicting_pairs = set() # Pairs of (d1,s1), (d2,s2)
-        
-        first_last_list = list(self.get_first_last_shifts().items())
-        for i in range(len(first_last_list)-1):
-            today_last = (first_last_list[i][0], first_last_list[i][1][1]) # (d1, s1)
-            next_first = (first_last_list[i+1][0], first_last_list[i+1][1][0]) # (d2, s2)
-            conflicting_pairs.add((today_last, next_first))
-        
+        conflicting_pairs = self.get_nosleep_shifts(540, 1320) # Pairs of (d1,s1), (d2,s2)
+
         for p in self.people:
             for (d1, s1),(d2,s2) in conflicting_pairs:
                 # Both of them can't be true for the same person
@@ -224,6 +218,26 @@ class ShiftModel(cp_model.CpModel):
             first_last[day] = (first, last)
 
         return first_last
+
+    def get_nosleep_shifts(self, early: int, late: int):
+        """Get the (d1,s1),(d2,s2) shift pairs,
+        that are late and early shifts
+        on consecutive day, and therefore
+        conflict in the name of sleep.
+        Args:
+            early: the day minutes before which a shift is early
+            late: the day minutes after which a shift is late
+        """
+        conflicting = set()
+        prev_day_late_shifts = []
+        for d in self.shifts_for_day.keys():
+            day_shifts = self.shifts_for_day[d]
+            early_shifts = [(d,s) for s in day_shifts if self.shift_data[d,s][1] <= early]
+            for conflict in product(early_shifts, prev_day_late_shifts):
+                conflicting.add(conflict)
+            prev_day_late_shifts = [(d,s) for s in day_shifts if self.shift_data[d,s][2] >= late]
+
+        return conflicting
 
     @staticmethod
     def get_daily_shifts(shifts):

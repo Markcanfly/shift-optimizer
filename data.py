@@ -38,7 +38,8 @@ def shifts_from_json(shift_dict) -> dict:
             'begin': 525,
             'end': 960,
             'begintime': unixtime,
-            'endtime': unixtime
+            'endtime': unixtime,
+            'position': position_name
         }
     """
     def to_mins(t):
@@ -53,7 +54,8 @@ def shifts_from_json(shift_dict) -> dict:
                 'begin': to_mins(shift['begin']),
                 'end': to_mins(shift['end']),
                 'begintime': shift['begintime'],
-                'endtime': shift['endtime']
+                'endtime': shift['endtime'],
+                'position': shift['position']
             }
     
     return sdata

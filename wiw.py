@@ -64,6 +64,21 @@ if response.status_code == 200:
 else:
     raise Exception('Failed to get userlist.')
 
+## Get list of positions
+response = requests.get(
+    'https://api.wheniwork.com/2/positions', 
+    headers={"W-Token": wiwcreds['token'], "W-UserId": wiwcreds['UserId']},
+    params={'show_deleted': False}
+    )
+if response.status_code == 200:
+    positionsraw = json.loads(response.text)
+    position_id = dict() # Store the position 'pos_name' : 'pos_id' here
+    for position in positionsraw['positions']:
+        position_id[position['name']] = position['id']
+else:
+    raise Exception('Failed to get existing shifts')
+
+
 # WARNING: Non-atomic. This is the reason multiple instances can't run at the same time.
 # List shifts to avoid adding duplicates
 
@@ -120,7 +135,7 @@ for d,s,p in assigned:
     sdata = {
         'user_id': userid[p],
         'location_id': location_id,
-        'position_id': wiwcreds['posID'],
+        'position_id': position_id[shifts[d,s]['position']] if shifts[d,s]['position'] is not None else wiwcreds['posID'],
         'start_time': dt.fromtimestamp(shifts[d,s]['begintime']).isoformat(),
         'end_time': dt.fromtimestamp(shifts[d,s]['endtime']).isoformat()
     }

@@ -7,31 +7,13 @@ from pathlib import Path
 from copy import deepcopy
 
 parser = argparse.ArgumentParser()
-parser.add_argument('dirpath', help='The path of the directory of the inputsite. This should contain the js file with the shifts.', type=str)
-parser.add_argument('urlname', help='The name of the form in the directory.', type=str)
+parser.add_argument('file', help='Path to the .json file with the schedule data.')
 parser.add_argument('--no-solve', dest='nosolve', help="Don't solve, just create the overview excel.", action='store_true')
-parser.add_argument('--override', help='Path of the .json file with the override values for personal requirements.', type=str)
 parser.add_argument('-t', '--timeout', help='The maximum time in seconds that the solver can take to find an optimal solution.', default=None, type=int)
-parser.add_argument('-r', dest='removed', nargs='+', help='Space-separated email addresses to omit from the solve.', type=str)
 args = parser.parse_args()
 
 # Collect data from files
-shifts, prefs, personal_reqs = data.data_from_pageclip(args.dirpath, args.urlname)
-print('Webdata received.')
-# Optionally remove some people from the solve
-if args.removed is not None:
-    # Remove from prefs
-    for d,s,p in list(prefs.keys()):
-        if p in args.removed:
-            del prefs[d,s,p]
-    # Remove from preqs
-    for p in list(personal_reqs.keys()):
-        if p in args.removed:
-            del personal_reqs[p]
-
-# Optionally override preqs
-if args.override is not None:
-    data.override_preqs(args.override, personal_reqs)
+shifts, prefs, personal_reqs = data.load_file(args.file)
 
 solver = ShiftSolver(shifts=shifts, preferences=prefs, personal_reqs=personal_reqs)
 
@@ -42,7 +24,7 @@ for shift_props in shifts.values():
 
 starting_capacity = int(sum_capacities*0.85)
 
-subfolderpath = f"{args.urlname}-{args.dirpath}"
+subfolderpath = '.'
 
 Path(subfolderpath+'/sols').mkdir(parents=True, exist_ok=True)
 rows = [] # {'pref':s1, 'unfilled':s2, 'empty':s3, 'filename':s4}

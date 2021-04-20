@@ -1,5 +1,4 @@
 from ortools.sat.python import cp_model
-from data import preferences_from_csv, shifts_from_json
 from itertools import combinations, product
 
 def get_printable_time(minutes):
@@ -23,7 +22,7 @@ class ShiftModel(cp_model.CpModel):
                 'end': 960
             }
             preferences: dict of pref[day_id,shift_id,person_id] = pref_score
-            group: group[person_id] = {'min': n1, 'max': n2, 'long_shifts': n3} dict
+            personal: group[person_id] = {'min': n1, 'max': n2, 'long_shifts': n3} dict
         """
         super().__init__()
         self.people = ShiftModel.get_people(preferences)

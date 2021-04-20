@@ -1,8 +1,9 @@
 """Handling of raw data from files"""
 import json
-import csv
-import requests
+from typing import Tuple, List, Dict
 from requests.auth import HTTPBasicAuth
+from datetime import date, datetime
+import pytz
 
 def filter_unique_ordered(l):
     """Filter a list so that the items are unique.
@@ -60,215 +61,141 @@ def shifts_from_json(shift_dict) -> dict:
     
     return sdata
 
-def shifts_from_jsonfile(shiftsjson) -> dict:
-    """Read the shift data from a json,
-    and return it in a solver-compatible format.
-    Expects a json structured like such:
-        "Hétfő 04.": [
-        {
-            "capacity": 2,
-            "begin": [
-                8,
-                45
-            ],
-            "end": [
-                16,
-                0
-            ]
-        },...
+def get_days_sorted(shifts: "List[Dict]", timezone) -> list:
+    """Takes a dict with items
+    {'begin': timestamp}
+    and returns sorted list of day ids"""
+    days = set()
+    for shift in shifts:
+        days.add(datetime.fromtimestamp(shift['begin']).astimezone(pytz.timezone(timezone)).date())
+    days = list(sorted(days))
+    days = [d.day for d in days]
+    return days
+
+def shift_dict(rshifts: "List[Dict]", days: "List[str]", timezone: str) -> "Dict[str, int]":
+    """Creates the necessary shift dict format
+    Arguments:
+        rshifts: rshifts
+        days: list of ordered day numbers
+        timezone: timezone name
     Returns:
-        dict of sdata[day_id, shift_id] = {
-            'capacity': 2,
-            'begin': 525,
-            'end': 960,
-            'begintime': unixtime,
-            'endtime': unixtime
+        shifts[day, shift] = {cap, begin, end}
+    """
+    lshifts = {d:[] for d in days} # List of shifts for each day
+    for shift in rshifts:
+        begin = datetime.fromtimestamp(int(float(shift['begin']))).astimezone(pytz.timezone(timezone))
+        end = datetime.fromtimestamp(int(float(shift['end']))).astimezone(pytz.timezone(timezone))
+        lshifts[begin.day].append(
+            {
+                'id': shift['id'],
+                'capacity': shift['capacity'],
+                'begin': begin.hour * 60 + begin.minute,
+                'end': end.hour * 60 + end.minute
+            }
+        )
+    # Sort then add to (day,shift) keyed dict
+    shifts = {}
+    for day, shiftarray in lshifts.items():
+        shiftarray.sort(key=lambda s:s['begin'])
+        for shift in shiftarray: # Organize by id
+            shifts[day, int(shift['id'])] = {
+                'capacity': shift['capacity'],
+                'begin': shift['begin'],
+                'end': shift['end']
+            }
+    return shifts
+
+def prefscores(shifts: "Dict[int, int]", users: "Dict") -> "Dict[int, int, int]":
+    """
+    Arguments:
+        shifts: sdata[day, shiftid]
+        users: [userdata]
+    Returns:
+        prefscore[day,shift,person] = int
+    """
+    prefscore_for_id = {sid:[] for day,sid in shifts.keys()}
+    for user in users:
+        for sid, pref in user['preferences'].items():
+            prefscore_for_id[int(sid)].append((user['email'],pref))
+    prefscore = {}
+    for day, shift in shifts:
+        for person, pref in [elem for elem in prefscore_for_id[shift]]:
+            prefscore[day,shift,person] = pref
+    return prefscore
+
+def requirements(users: "List[Dict]", min_ratio=0.6) -> "Dict[str]":
+    """Get the schedule requirements for this person
+    Arguments:
+        users: [
+            {
+                email
+                hours_adjusted
+                hours_max
+                preferences
+            }
+        ]
+        min_ratio: float, ratio of min hours to max hours
+    Returns:
+        req[userid] = {
+            'min': minimum number of hours
+            'max': maximum number of hours
+            'min_long_shifts': minimum number of long shifts for this person,
+            'only_long_shifts': whether this user can only take long shifts
         }
+    """ # WARNING highly custom code for Wolt Hungary
+    reqs = {}
+    for user in users:
+        reqs[user['email']] = {
+            'min':int(user['hours_adjusted'] * min_ratio),
+            'max':int(user['hours_adjusted'] if user['hours_adjusted'] > 0 else user['hours_max']),
+            'min_long_shifts': 1, # Everybody needs at least one
+            'only_long_shifts': user['hours_max'] >= 35
+        }
+    return reqs
+
+def load_file(filename) -> Tuple[dict, dict, dict]:
     """
-
-    with open(shiftsjson, 'r', encoding='utf8') as jsonfile:
-        shift_dict = json.load(jsonfile, )
-
-    return shifts_from_json(shift_dict)
-
-def preferences_from_csv(prefcsv, shiftsjson) -> dict:
-    """Read the preference data from a csv, 
-    and return it in a solver-compatible format.
-    For this it needs to also read the shifts json, to get the day names.
-    We expect the day names, and the shifts to be in the same order in both files.
-    
-    Returns:
-        dict of pref[day_id,shift_id,person_id] = pref_score 
-    """
-
-    # Find daynames
-    unique_daynames = list()
-    for day_id, shift_id in shifts_from_json(shiftsjson).keys():
-        if day_id not in unique_daynames:
-            unique_daynames.append(day_id)
-
-    firstrow = True
-    pref = dict()
-
-    with open(prefcsv, "r", encoding='utf8') as csvfile:
-        csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
-        for row in csvreader:
-            if firstrow:
-                firstrow = False
-                continue
-            person_id = row[0]
-            for day_index, daily_shifts_str in enumerate(row[1:-1]):
-                if daily_shifts_str != "": # Pref list for day isn't empty
-                    daily_shifts = list(map(int,daily_shifts_str.split(',')))
-                    for pref_score, shift_id in enumerate(daily_shifts):
-                        pref[unique_daynames[day_index], shift_id, person_id] = pref_score
-    
-    return pref
-
-def data_from_pageclip(foldername, urlname):
-    """Get all necessary data straight from the web
-    Expects a webdata.json formatted as such:
+    Loads a .json file in the format of
     {
-    "website": "{INPUTSITE_URL}
-    "apikey": "{API_KEY}",
-    "groups": {
-        "Fulltimer": {
-            "long_shifts_only": true
-        },
-        "Diák": {
-            "long_shifts_only": false
-        }
-        }
-    }
-    Take care to use the most recent version of entry data from everyone.
-    Args:
-        urlname: the location
-    Returns:
-        (shifts, preferences, personal_reqs)
-    """
-    with open('webdata.json', 'r', encoding='utf8') as webdatafile:
-        webdata = json.load(webdatafile)
-
-    # Get shifts from inputsite
-    js = requests.get(f'{webdata["website"]}/{foldername}/{urlname}.js').text
-    shiftsraw = json.loads(js[js.index('{'):]) # beginning of JSON shifts
-    shifts = shifts_from_json(shiftsraw)
-
-    # Find urlname of form
-    # Awful blackmagicfuckery, but works for now
-    formurlname_begin = js.index('const urlname = "') + len('const urlname = "')
-    formurlname_end = js.index('"', formurlname_begin)
-    formurlname = js[formurlname_begin:formurlname_end]
-
-    response = requests.get(
-        f'https://api.pageclip.co/data/{formurlname}', # Prefdata from pageclip
-        auth=HTTPBasicAuth(webdata['pageclip-key'],''),
-        headers={'Accept': 'application/vnd.pageclip.v1+json'},
-        params={'archived': False} # Don't get archived
-    )
-    
-    # Get prefs & preqs
-    rawdata = json.loads(response.text)
-    # Time order -> reversed, make sure latest mods are in the system
-    rows = [item['payload'] for item in rawdata['data']]
-
-    # Check 
-    # For now we need to manually delete the old inputs
-    # Because I am unsure of dealing with str timestamps
-    pid_count = dict()
-    for row in rows:
-        pid = row['email']
-        if pid not in pid_count:
-            pid_count[pid] = 1
-        else:
-            pid_count[pid] += 1
-
-    duplicate_emails = set()
-    for pid, n in pid_count.items():
-        if n > 1:
-            duplicate_emails.add(pid)
-    if len(duplicate_emails) > 0:
-        raise ValueError(f"Duplicate email addresses found: {duplicate_emails}")
-    
-    # Get preferences & personal requirements
-    prefscore = dict()
-    preqs = dict()
-    for row in rows:
-        for d in shiftsraw.keys():
-            if row['day_prefs'][d] != '': # No prefs for that day
-                pref_order = filter_unique_ordered(list(map(int, row['day_prefs'][d].split(","))))
-                for pref, shift in enumerate(pref_order):
-                    prefscore[d,shift,row['email']] = pref
-        preqs[row['email']] = {
-            'min': list(map(int, row['hours'].split(',')))[0],
-            'max': list(map(int, row['hours'].split(',')))[1],
-            'min_long_shifts': webdata['groups'][row['group']]["min_long_shifts"],
-            'only_long_shifts': webdata['groups'][row['group']]["long_shifts_only"]
-        }
-    return (shifts, prefscore, preqs)
-
-def personal_reqs_from_groups(filename) -> dict:
-    """Read the group data from a json,
-    and return it in a solver-compatible format.
-    Make sure it's valid.
-    Expects a json structured like:
-        "group_name": {
-            "people": [
-                "p_id1",
-                "p_id2",...
-            ],
-            "min_hours": 25,
-            "max_hours": 35,
-            "min_long_shifts":1,
-            "only_long_shifts": true
-        },...
-    Returns:
-        preqs: preqs[person_id] = {
-            'min': n1, 
-            'max': n2, 
-            'min_long_shifts': n3, 
-            'only_long_shifts': bool1
-            } dict
-    """
-    
-    with open(filename, 'r', encoding='utf8') as jsonfile:
-        groups_raw = json.load(jsonfile)
-    
-    preqs = dict()
-
-    people_list = [] # For validating that one name is in one group only
-    for g in groups_raw.values():
-        people_list += g['people'] # For validation
-        for person_id in g['people']:
-            preqs[person_id] = {
-                'min': g['min_hours'], 
-                'max': g['max_hours'], 
-                'min_long_shifts': g['min_long_shifts'],
-                'only_long_shifts': g['only_long_shifts']
+        'shifts': [
+            {
+                'id': int
+                'begin': timestamp
+                'end': timestamp
+                'capacity': int
+                'position': wiw_id
+            }
+        ]
+        'timezone': tzname
+        'users' [
+            {
+                'email': str
+                'hours_adjusted': float
+            
+                'hours_max': float
+                'wiw_id': wiw_id
+                'preferences': {
+                    shiftid: priority
                 }
-    
-    if len(set(people_list)) != len(people_list):
-        raise ValueError('One or more person_id is assigned to multiple groups.')
-    
-    return preqs
-
-def hours_for_everyone(preferences, min_hours, max_hours) -> dict:
-    """Create an hour specification for all people in the preferences,
-    with equal required hours.
-    As if there was a single that everybody was part of.
-    Returns:
-        hours: hours[person_id] = {'min': n1, 'max': n2} dict
-    """
-    hours = dict()
-
-    people = set([pref[2] for pref in preferences])
-    for person in people:
-        hours[person] = {
-            'min': min_hours,
-            'max': max_hours
-        }
-    
-    return hours
+            }
+        ]
+    }
+    And returns a tuple of
+    (
+        shifts: dict[dayid, shiftid] = {}
+        preferences
+        requirements
+    )"""
+    with open(filename, 'r') as f:
+        data = json.load(f)
+    rshifts = data['shifts']
+    rtimezone = data['timezone']
+    rusers = data['users']
+    days = get_days_sorted(rshifts, rtimezone)
+    shifts = shift_dict(rshifts, days, rtimezone)
+    prefs = prefscores(shifts, rusers)
+    reqs = requirements(rusers)
+    return shifts, prefs, reqs
 
 def json_compatible_solve(values):
     """Create a JSON-compatible dict from

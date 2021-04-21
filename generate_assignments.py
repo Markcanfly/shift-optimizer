@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('file', help='Path to the .json file with the schedule data.')
 parser.add_argument('--no-solve', dest='nosolve', help="Don't solve, just create the overview excel.", action='store_true')
 parser.add_argument('-t', '--timeout', help='The maximum time in seconds that the solver can take to find an optimal solution.', default=None, type=int)
+parser.add_argument('-c', '--capacities', help='The percentage of capacities to fill as a minimum', default=96.0, type=float)
 args = parser.parse_args()
 
 # Collect data from files
@@ -22,7 +23,7 @@ sum_capacities = 0
 for shift_props in shifts.values():
     sum_capacities += shift_props['capacity']
 
-starting_capacity = int(sum_capacities*0.85)
+starting_capacity = int(sum_capacities*(args.capacities / 100))
 
 subfolderpath = '.'
 

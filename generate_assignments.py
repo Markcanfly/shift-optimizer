@@ -13,8 +13,9 @@ parser.add_argument('-t', '--timeout', help='The maximum time in seconds that th
 parser.add_argument('-c', '--capacities', help='The percentage of capacities to fill as a minimum', default=96.0, type=float)
 args = parser.parse_args()
 
-# Collect data from files
-shifts, prefs, personal_reqs = data.load_file(args.file)
+with open(args.file, 'r') as f:
+    jsondata = json.load(f)
+    shifts, prefs, personal_reqs = data.load_data(jsondata)
 
 solver = ShiftSolver(shifts=shifts, preferences=prefs, personal_reqs=personal_reqs)
 
@@ -47,7 +48,7 @@ if not args.nosolve:
             excel.write_to_file(xlsxfilepath, shifts, prefs, solver.Values(), personal_reqs)
 
             with open(f'{subfolderpath}/sols/{n}.json', 'w', encoding='utf8') as jsonfile:
-                json.dump(data.json_compatible_solve(solver.Values()), jsonfile, indent=4, ensure_ascii=False)
+                json.dump(data.json_compatible_solve(solver.Values(), jsondata), jsonfile, indent=4, ensure_ascii=False)
         
 
         else: # No more solutions to be found

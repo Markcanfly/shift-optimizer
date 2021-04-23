@@ -1,8 +1,9 @@
 """Handling of raw data from files"""
 import json
-from typing import Tuple, List, Dict
+from typing import Tuple
+from typing import List, Dict
 from requests.auth import HTTPBasicAuth
-from datetime import date, datetime
+from datetime import datetime
 import pytz
 
 def filter_unique_ordered(l):
@@ -16,6 +17,10 @@ def filter_unique_ordered(l):
             occured.add(elem)
             filtered.append(elem)
     return filtered
+
+timestamp = int
+def datetime_string(ts: timestamp) -> str:
+    return datetime.fromtimestamp(int(ts)).isoformat()
 
 def shifts_from_json(shift_dict) -> dict:
     """Read the shift data from a json,
@@ -153,41 +158,39 @@ def requirements(users: "List[Dict]", min_ratio=0.6) -> "Dict[str]":
         }
     return reqs
 
-def load_file(filename) -> Tuple[dict, dict, dict]:
+def load_data(data: dict) -> Tuple[dict, dict, dict]:
     """
-    Loads a .json file in the format of
-    {
-        'shifts': [
-            {
-                'id': int
-                'begin': timestamp
-                'end': timestamp
-                'capacity': int
-                'position': wiw_id
-            }
-        ]
-        'timezone': tzname
-        'users' [
-            {
-                'email': str
-                'hours_adjusted': float
-            
-                'hours_max': float
-                'wiw_id': wiw_id
-                'preferences': {
-                    shiftid: priority
+    Args:
+        data: {
+            'shifts': [
+                {
+                    'id': int
+                    'begin': timestamp
+                    'end': timestamp
+                    'capacity': int
+                    'position': wiw_id
                 }
-            }
-        ]
-    }
+            ]
+            'timezone': tzname
+            'users' [
+                {
+                    'email': str
+                    'hours_adjusted': float
+                
+                    'hours_max': float
+                    'wiw_id': wiw_id
+                    'preferences': {
+                        shiftid: priority
+                    }
+                }
+            ]
+        }
     And returns a tuple of
     (
         shifts: dict[dayid, shiftid] = {}
         preferences
         requirements
     )"""
-    with open(filename, 'r') as f:
-        data = json.load(f)
     rshifts = data['shifts']
     rtimezone = data['timezone']
     rusers = data['users']
@@ -197,22 +200,62 @@ def load_file(filename) -> Tuple[dict, dict, dict]:
     reqs = requirements(rusers)
     return shifts, prefs, reqs
 
-def json_compatible_solve(values):
-    """Create a JSON-compatible dict from
-    a solver values dict.
+def json_compatible_solve(values: dict, data: dict):
+    """Create a solution object
     Args:
         values: [(day,shift,person)] = True | False
+        data: {
+            'shifts': [
+                {
+                    'id': int
+                    'begin': timestamp
+                    'end': timestamp
+                    'capacity': int
+                    'position': wiw_id
+                }
+            ]
+            'timezone': tzname
+            'users' [
+                {
+                    'email': str
+                    'hours_adjusted': float
+                
+                    'hours_max': float
+                    'wiw_id': wiw_id
+                    'preferences': {
+                        shiftid: priority
+                    }
+                }
+            ]
+        }
     Returns:
-        assigned[day][shift][person] = True | False
+        shifts: [
+            {
+                user_id: wiw_user_id,
+                position_id: wiw_pos_id,
+                start_time: datetimestring
+                end_time: datetimestring
+            }
+        ]
     """
-    assigned = dict()
-    for d,s,p in values.keys():
-        if d not in assigned.keys():
-            assigned[d] = {s: {p: values[d,s,p]}}
-        if s not in assigned[d].keys():
-            assigned[d][s] = {p: values[d,s,p]}
-        assigned[d][s][p] = values[d,s,p]
-    return assigned
+    user_wiw_for_email = dict()
+    for user in data['users']:
+        user_wiw_for_email[user['email']] = user['wiw_id']
+    shift_for_id = dict()
+    for s in data['shifts']:
+        shift_for_id[s['id']] = {
+            # Capacity is determined by number of shifts in solution
+            'start_time': datetime_string(s['begin']),
+            'end_time': datetime_string(s['end']),
+            'position_id': s['position']
+        }
+    shifts = []
+    for (day, shift_id, user_email), assigned in values.items():
+        if assigned:
+            shift = shift_for_id[shift_id].copy()
+            shift['user_id'] = user_wiw_for_email[user_email]
+            shifts.append(shift)
+    return shifts
 
 def solve_from_json_compatible(jsondict):
     """Create a solver values dict from

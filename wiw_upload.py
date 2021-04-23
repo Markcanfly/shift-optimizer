@@ -10,6 +10,7 @@ from dateutil.parser import parse as dtparse
 from datetime import datetime as dt
 
 parser = argparse.ArgumentParser()
+parser.add_argument('filename')
 parser.add_argument('--email')
 parser.add_argument('--password')
 parser.add_argument('--userid')

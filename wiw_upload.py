@@ -42,17 +42,31 @@ location_id = wiw.get_users()['locations'][0]['id'] # Assume there's just one
 with open(args.filename, 'r') as shiftfile:
     shifts = json.load(shiftfile)
 
+uploaded = []
+failed = []
+
 # Upload shifts
 for shift in shifts:
     try:
-        wiw.create_shift(
+        uploaded_shift = wiw.create_shift(
             location=location_id, 
             start=shift['start_time'], 
             end=shift['end_time'], 
             user_id=shift['user_id'],
             position_id=shift['position_id']
         ) # Create new shift
+        uploaded.append((shift, uploaded_shift))
     except HTTPError as e:
         print(str(e))
+        failed.append((shift, e))
 
+# Stats
+if len(uploaded) > 0:
+    print('Successfully uploaded shift ids:')
+    for shift, upload in uploaded:
+        print(upload['shift']['id'])
 
+if len(failed) > 0:
+    print('Failed to upload:')
+    for shift, error in failed:
+        print(json.dumps(shift)+' Error: '+ str(error))

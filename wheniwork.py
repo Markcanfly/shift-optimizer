@@ -117,7 +117,7 @@ class WhenIWork:
                 updated_at: str<date-time>
             }
         """
-        self.__post('locations', data=params)
+        return self.__post('locations', data=params)
     def get_users(self, show_pending=True, show_deleted=False, search=None) -> dict:
         """
         Get users from the workplace
@@ -248,4 +248,5 @@ class WhenIWork:
                 'end_time': end
             }
         )
-        self.__post('shifts', data=json.dumps(kwargs))
+        return self.__post('shifts', data=json.dumps(kwargs))
+        

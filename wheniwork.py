@@ -8,12 +8,13 @@ unless stated otherwise.
 from datetime import datetime
 import requests
 from typing import List
+import json
 
-class WhenIWorkError(Exception):
-    pass
+class WhenIWorkError(Exception): pass
 
-class NoTokenError(WhenIWorkError):
-    pass
+class NoTokenError(WhenIWorkError): pass
+
+class NoLoginError(WhenIWorkError): pass
 
 class WhenIWork:
     def __init__(self, token, user_id):
@@ -32,7 +33,7 @@ class WhenIWork:
         """
         headers= {"W-Token": self.token, "W-UserId": str(self.user_id)}
         response = requests.get(
-            f'https://api.wheniwork.com{address}',
+            f'https://api.wheniwork.com/2/{address}',
             headers=headers,
             params=params
         )
@@ -46,7 +47,7 @@ class WhenIWork:
         """
         headers = {"W-Token": self.token, "W-UserId": str(self.user_id)}
         response = requests.post(
-            f'https://api.wheniwork.com{address}',
+            f'https://api.wheniwork.com/2/{address}',
             headers=headers,
             data=data
         )
@@ -73,7 +74,7 @@ class WhenIWork:
             resp (list): array of location objects
         """
         params = {'only_unconfirmed': only_unconfirmed}
-        locations = self.__get('/2/locations', params=params)['locations']
+        locations = self.__get('locations', params=params)['locations']
         return locations
     def create_location(self, params: dict):
         """Create Schedule(Location)
@@ -128,7 +129,7 @@ class WhenIWork:
             'show_deleted': show_deleted,
             'search': search
         }
-        return self.__get('/2/users', params=params)
+        return self.__get('users', params=params)
     def get_positions(self, show_deleted=False) -> dict:
         """
         Get positions from the workplace
@@ -136,14 +137,14 @@ class WhenIWork:
             resp (dict): array under key `positions`
         """
         params = { 'show_deleted': show_deleted }
-        return self.__get('/2/positions', params=params)
+        return self.__get('positions', params=params)
     def get_timeoff_types(self) -> dict:
         """
         Get Time Off Types
         Returns:
             resp (dict): array under key `request-types`
         """
-        return self.__get('/2/requesttypes')
+        return self.__get('requesttypes')
     def __get_timeoff_requests_pagination(
             self, 
             start: datetime,
@@ -177,7 +178,7 @@ class WhenIWork:
             'include_deleted_users': include_deleted_users,
             'type': type
         }
-        return self.__get('/2/requests', params=params)
+        return self.__get('requests', params=params)
     def get_timeoff_requests(
             self, 
             start: datetime,
@@ -227,7 +228,7 @@ class WhenIWork:
             'user_id': user_id,
             'include_all': include_all
         }
-        return self.__get('/2/availabilityevents', params=params)
+        return self.__get('availabilityevents', params=params)
     def get_shifts(self, start:datetime, end:datetime, unpublished: bool=False, **kwargs) -> "List[dict]":
         kwargs.update(
             {
@@ -237,12 +238,14 @@ class WhenIWork:
             }
         )
         return self.__get('shifts', params=kwargs)
-    def create_shift(self, location, start:datetime, end:datetime, **kwargs):
+    def create_shift(self, location, start:datetime or str, end:datetime or str, **kwargs):
+        if type(start) is datetime: start = start.isoformat()
+        if type(end) is datetime: end = end.isoformat()
         kwargs.update(
             {
                 'location_id': location,
-                'start_time': start.isoformat(),
-                'end_time': end.isoformat()
+                'start_time': start,
+                'end_time': end
             }
         )
-        self.__post('shifts', data=kwargs)
+        self.__post('shifts', data=json.dumps(kwargs))

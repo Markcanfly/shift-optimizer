@@ -200,7 +200,7 @@ def load_data(data: dict) -> Tuple[dict, dict, dict]:
     reqs = requirements(rusers)
     return shifts, prefs, reqs
 
-def json_compatible_solve(values: dict, data: dict):
+def json_compatible_solve(values: dict, data: dict) -> "dict[list,list]":
     """Create a solution object
     Args:
         values: [(day,shift,person)] = True | False
@@ -242,6 +242,7 @@ def json_compatible_solve(values: dict, data: dict):
     for user in data['users']:
         user_wiw_for_email[user['email']] = user['wiw_id']
     shift_for_id = dict()
+    capacity = dict() # capacity for shift id
     for s in data['shifts']:
         shift_for_id[s['id']] = {
             # Capacity is determined by number of shifts in solution
@@ -249,11 +250,23 @@ def json_compatible_solve(values: dict, data: dict):
             'end_time': datetime_string(s['end']),
             'position_id': s['position']
         }
+        capacity[s['id']] = s['capacity']
+    # Add assigned shifts
     shifts = []
+    filled = {k[1]: 0 for k in values.keys()} # n of capacities for shift id
     for (day, shift_id, user_email), assigned in values.items():
         if assigned:
             shift = shift_for_id[shift_id].copy()
             shift['user_id'] = user_wiw_for_email[user_email]
+            shifts.append(shift)
+            filled[shift_id] += 1
+    # Add openshifts
+    for shift_id in capacity.keys():
+        # Add as many shifts to openshifts as many capacities are unfilled
+        for _ in range(capacity[shift_id] - filled[shift_id]):
+            shift = shift_for_id[shift_id].copy()
+            shift['user_id'] = 0
+            shift['is_shared'] = True
             shifts.append(shift)
     return shifts
 

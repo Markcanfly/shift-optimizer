@@ -151,7 +151,7 @@ def requirements(users: "List[Dict]", min_ratio=0.6) -> "Dict[str]":
     reqs = {}
     for user in users:
         reqs[user['email']] = {
-            'min':int(user['hours_adjusted'] * min_ratio) if user['hours_adjusted'] < 40 else 35,
+            'min':int(user['hours_adjusted'] * min_ratio),
             'max':int(user['hours_adjusted'] if user['hours_adjusted'] > 0 else user['hours_max']),
             'min_long_shifts': 1, # Everybody needs at least one
             'only_long_shifts': user['hours_max'] >= 35

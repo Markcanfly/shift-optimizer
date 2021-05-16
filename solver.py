@@ -103,9 +103,9 @@ class ShiftModel(cp_model.CpModel):
         """
         self.Add(sum([assigned_val for assigned_val in self.variables.values()]) >= n)
 
-    def AddMinMinutes(self):
-        """Make sure that everyone works their minimum number of minutes.
-        This is determined by the hdata dictionary.
+    def AddMinMaxMinutes(self):
+        """Make sure that everyone works within their schedule time range.
+        This is determined by the preq_data dictionary.
         """
         mins_of_shift = dict() # calculate shift hours
 
@@ -118,24 +118,7 @@ class ShiftModel(cp_model.CpModel):
             for d, shifts in self.shifts_for_day.items():
                 for s in shifts:
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
-            self.Add(work_mins >= self.preq_data[p]['min']*60)
-
-    def AddMaxMinutes(self):
-        """Make sure that everyone works less than their maximum number of minutes.
-        This is determined by the hdata dictionary.
-        """
-        mins_of_shift = dict() # calculate shift hours
-
-        for (d,s),(c, begin, end) in self.shift_data.items():
-            del c # Capacity is not used here
-            mins_of_shift[(d,s)] = end - begin
-        
-        for p in self.people:
-            work_mins = 0
-            for d, shifts in self.shifts_for_day.items():
-                for s in shifts:
-                    work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
-            self.Add(work_mins <= self.preq_data[p]['max']*60)
+            self.Add(self.preq_data[p]['min']*60 <= work_mins <= self.preq_data[p]['max']*60)
 
     def AddLongShifts(self, length=300):
         """Make sure that everyone works at least n long shifts.
@@ -203,7 +186,7 @@ class ShiftModel(cp_model.CpModel):
                 # Both of them can't be true for the same person
                 self.Add(self.variables[(d1,s1,p)] + self.variables[(d2,s2,p)] < 2)
 
-    def MaximizeWelfare(self, fun):
+    def MaximizeWelfare(self):
         """Maximize the welfare of the employees.
         This target will minimize the dissatisfaction of the employees
         with their assigned shift, given a function, which determines factors
@@ -217,7 +200,7 @@ class ShiftModel(cp_model.CpModel):
             pref[(d,s,p)] = self.pref_data[(d,s,p)] if (d,s,p) in self.pref_data else 0
 
         self.Minimize(
-            sum([works*fun(pref[works_id]) for works_id, works in self.variables.items() if pref[works_id] is not None])
+            sum([works*pref[works_id] for works_id, works in self.variables.items() if pref[works_id] is not None])
         )
 
     # Helper methods
@@ -375,7 +358,7 @@ class ShiftSolver(cp_model.CpSolver):
         self.personal_reqs = personal_reqs
         self.__model = None
     
-    def Solve(self, min_workers: int, min_capacities_filled: int = 0, min_capacities_filled_ratio: float = 0, pref_function=lambda x:x, timeout=None) -> bool:
+    def Solve(self, min_workers: int, min_capacities_filled: int = 0, min_capacities_filled_ratio: float = 0, timeout=None) -> bool:
         """ 
         Args:
             min_workers: The minimum number of workers that have to be assigned to every shift
@@ -391,11 +374,10 @@ class ShiftSolver(cp_model.CpSolver):
         self.__model.AddShiftCapacity(min=min_workers)
         self.__model.AddMinimumCapacityFilledNumber(n=min_capacities_filled)
         self.__model.AddMinimumFilledShiftRatio(ratio=min_capacities_filled_ratio)
-        self.__model.MaximizeWelfare(pref_function)
+        self.__model.MaximizeWelfare()
         self.__model.AddLongShiftBreak()
         self.__model.AddSleep()
-        self.__model.AddMinMinutes()
-        self.__model.AddMaxMinutes()
+        self.__model.AddMinMaxMinutes()
         self.__model.AddMaxNShifts(5)
         self.__model.AddMaxDailyShifts(1)
         if timeout is not None:

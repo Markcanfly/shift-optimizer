@@ -1,5 +1,7 @@
 from ortools.sat.python import cp_model
 from itertools import combinations, product
+from datetime import datetime, timedelta, time
+from typing import List, Dict, Any, Tuple, Set, Iterable
 
 def get_printable_time(minutes):
     hours = minutes // 60
@@ -18,8 +20,8 @@ class ShiftModel(cp_model.CpModel):
         """Args:
             shifts: dict of sdata[day_id, shift_id] = {
                 'capacity': 2,
-                'begin': 525,
-                'end': 960
+                'begin': datetime,
+                'end': datetime 
             }
             preferences: dict of pref[day_id,shift_id,person_id] = pref_score
             personal: group[person_id] = {'min': n1, 'max': n2, 'long_shifts': n3} dict
@@ -49,7 +51,7 @@ class ShiftModel(cp_model.CpModel):
             if self.pref_data[d,s,p] is None:
                 self.Add(self.variables[(d, s, p)] == False)
 
-    def AddShiftCapacity(self, min):
+    def AddShiftCapacity(self, min: int):
         """Make sure that there are exactly as many employees assigned
         to a shift as it has capacity.
         Args:
@@ -59,7 +61,7 @@ class ShiftModel(cp_model.CpModel):
             for s in shifts:
                 self.AddLinearConstraint(sum([self.variables[(d, s, p)] for p in self.people]), min, self.shift_data[(d,s)][0])
 
-    def AddMaxNShifts(self, n):
+    def AddMaxNShifts(self, n: int):
         """Make sure that everyone takes as most n shifts.
         Args:
             n
@@ -81,7 +83,7 @@ class ShiftModel(cp_model.CpModel):
     #         # Sum of works_on_day for all days is 0<x<n
     #         self.AddLinearConstraint(sum(max(day_shift_variables[d]) for d in self.shifts_for_day), 0, n)
 
-    def AddMaxDailyShifts(self, n):
+    def AddMaxDailyShifts(self, n: int):
         """Make sure that employees only get assigned to
         maximum of n shifts on any given day.
         Args:
@@ -91,14 +93,14 @@ class ShiftModel(cp_model.CpModel):
             for d, shifts in self.shifts_for_day.items():
                 self.AddLinearConstraint(sum([self.variables[d,s,p] for s in shifts]), 0, n)
 
-    def AddMinimumFilledShiftRatio(self, ratio):
+    def AddMinimumFilledShiftRatio(self, ratio: float):
         """Make sure that at least ratio * sum(capacities) is filled.
         """
         sum_capacities = sum([shift_props[0] for shift_props in self.shift_data.values()])
 
         self.Add(sum([assigned_val for assigned_val in self.variables.values()]) >= int(sum_capacities*ratio))
 
-    def AddMinimumCapacityFilledNumber(self, n):
+    def AddMinimumCapacityFilledNumber(self, n: int):
         """Make sure that at least n out of the sum(capacities) is filled.
         """
         self.Add(sum([assigned_val for assigned_val in self.variables.values()]) >= n)
@@ -120,7 +122,7 @@ class ShiftModel(cp_model.CpModel):
                     work_mins += self.variables[(d, s, p)] * mins_of_shift[(d,s)]
             self.Add(self.preq_data[p]['min']*60 <= work_mins <= self.preq_data[p]['max']*60)
 
-    def AddLongShifts(self, length=300):
+    def AddLongShifts(self, length: timedelta):
         """Make sure that everyone works at least n long shifts.
         Args:
             n: the number of shifts one needs to work
@@ -143,14 +145,14 @@ class ShiftModel(cp_model.CpModel):
                 for d, s in non_long_shifts:
                     self.Add(self.variables[d,s,p] == False)
 
-    def AddLongShiftBreak(self, length=300):
+    def AddLongShiftBreak(self, long_shift_length: timedelta):
         """Make sure that if you work a long shift, you're not gonna work
-        another shift on the some day.
+        another shift on the same day.
         """
         long_shifts = set() # find long shifts
         for (d, s), (c, begin, end) in self.shift_data.items():
             del c # Capacity is not used here
-            if end - begin > length: # Number of minutes
+            if end - begin > long_shift_length: # Number of minutes
                 long_shifts.add((d, s))
         
         for p in self.people:
@@ -165,7 +167,7 @@ class ShiftModel(cp_model.CpModel):
         conflicting_pairs = set() # assuming every day has the same shifts
         for ((d1,s1),(c1, b1, e1)), ((d2,s2),(c2, b2,e2)) in combinations(self.shift_data.items(), r=2):
             del c1, c2 # Capacity is not used here
-            if (d1==d2) and (((b2 < b1 < e2) or (b2 < e1 < e2)) or (((b1 < b2 < e1) or (b1 < e2 < e1)))): # Test conflict
+            if (d1==d2) and (((b2 < b1 < e2) or (b2 < e1 < e2)) or ((b1 < b2 < e1) or (b1 < e2 < e1))): # Test conflict
                 conflicting_pairs.add((d1,(s1,s2))) # add their ids
 
         # find pairs of incompatible (day,shift) ids
@@ -237,13 +239,13 @@ class ShiftModel(cp_model.CpModel):
         return conflicting
 
     @staticmethod
-    def get_daily_shifts(shifts):
+    def get_daily_shifts(shifts: "List[Dict]"):
         """Extract a dictionary of shift ids for each day. 
         Args:
             shifts: dict of sdata[day_id, shift_id] = {
                 'capacity': 2,
-                'begin': 525,
-                'end': 960
+                'begin': datetime,
+                'end': datetime
             }
         Returns:
             daily_shifts['day'] = list(shift1_id, shift2_id...)    
@@ -259,7 +261,7 @@ class ShiftModel(cp_model.CpModel):
         return daily_shifts
 
     @staticmethod
-    def get_people(preferences):
+    def get_people(preferences: "List[Any]") -> "Set[Any]":
         """Extract the set of people from a raw shift data list
         Args:
             preferences: dict of pref[day_id,shift_id,person_id] = pref_score
@@ -273,13 +275,13 @@ class ShiftModel(cp_model.CpModel):
         return people
 
     @staticmethod
-    def get_shiftdata(shifts):
+    def get_shiftdata(shifts: "List[Dict]") -> "Dict[Any, Any]":
         """Build a dictionary with the shift data from a shift list.
         Args:
             shifts: dict of sdata[day_id, shift_id] = {
                 'capacity': 2,
-                'begin': 525,
-                'end': 960
+                'begin': 1621319400.0,
+                'end': 1621346400.0
             }
         Returns:
             dictionary of sdata[(day_id, shift_id)] = (capacity, from, to)
@@ -287,11 +289,11 @@ class ShiftModel(cp_model.CpModel):
         sdata = dict()
         for (d,s), data in shifts.items():
             sdata[d, s] = (data['capacity'], data['begin'], data['end'])
-        
+
         return sdata
 
     @staticmethod
-    def get_prefdata(preferences, day_shift_combinations, people, preqs):
+    def get_prefdata(preferences: Dict, day_shift_combinations: Tuple, people: List, preqs: Dict) -> Dict:
         """Build a dictionary with the preference data from a preferences list
         Add None values where there is preference
         Args:
@@ -322,13 +324,15 @@ class ShiftModel(cp_model.CpModel):
         return pdata
 
     @staticmethod
-    def get_personal_requirements(personal_requirements, people):
+    def get_personal_requirements(personal_requirements: "Dict[Any]", people: "Iterable[Any]") -> "Dict[Any]":
         """Create valid personal personal requirement dictionary.
         Make sure that there are no person_id -s in preferences that don't have a min-max value in hours.
         Make sure that the format is correct
         Args:
             personal_requirements: preqs[person_id] = {'min': n1, 'max': n2, 'long_shifts': n3} dict
             people: a set of people_ids to validate against
+        Returns:
+            personal_requirements: preqs[person_id] = {'min': n1, 'max': n2, 'long_shifts': n3} dict
         """
         person_ids_not_in_groups = set(people).difference(personal_requirements.keys())
         if len(person_ids_not_in_groups) > 0:
@@ -375,7 +379,7 @@ class ShiftSolver(cp_model.CpSolver):
         self.__model.AddMinimumCapacityFilledNumber(n=min_capacities_filled)
         self.__model.AddMinimumFilledShiftRatio(ratio=min_capacities_filled_ratio)
         self.__model.MaximizeWelfare()
-        self.__model.AddLongShiftBreak()
+        self.__model.AddLongShiftBreak(300)
         self.__model.AddSleep()
         self.__model.AddMinMaxMinutes()
         self.__model.AddMaxNShifts(5)

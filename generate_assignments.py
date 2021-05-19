@@ -15,14 +15,14 @@ args = parser.parse_args()
 
 with open(args.file, 'r') as f:
     jsondata = json.load(f)
-    shifts, prefs, personal_reqs = data.load_data(jsondata)
+    schedule = data.load_data(jsondata)
 
-solver = ShiftSolver(shifts=shifts, preferences=prefs, personal_reqs=personal_reqs)
+solver = ShiftSolver(schedule)
 
 sum_capacities = 0
 # Calculate the number of capacities total
-for shift_props in shifts.values():
-    sum_capacities += shift_props['capacity']
+for shift in schedule.shifts:
+    sum_capacities += shift.capacity
 
 starting_capacity = int(sum_capacities*(args.capacities / 100))
 
@@ -34,7 +34,6 @@ rows = [] # {'pref':s1, 'unfilled':s2, 'empty':s3, 'filename':s4}
 if not args.nosolve:
     for n in range(starting_capacity, sum_capacities+1):
         if solver.Solve(
-                min_workers=0,
                 timeout=args.timeout,
                 min_capacities_filled=n):       
             print(f'Prefscore: {solver.ObjectiveValue()} Completely empty shifts: {solver.EmptyShifts()} Unfilled capacities: {solver.UnfilledCapacities()} in {round(solver.WallTime(),2)} seconds', end='')
@@ -45,7 +44,6 @@ if not args.nosolve:
             xlsxfilepath = f'{subfolderpath}/{xlsxsubpath}'
             # Write to excel and add index for the root later
             rows.append((xlsxsubpath, deepcopy(solver)))
-            excel.write_to_file(xlsxfilepath, shifts, prefs, solver.Values(), personal_reqs)
 
             with open(f'{subfolderpath}/sols/{n}.json', 'w', encoding='utf8') as jsonfile:
                 json.dump(data.json_compatible_solve(solver.Values(), jsondata), jsonfile, indent=4, ensure_ascii=False)
@@ -56,7 +54,3 @@ if not args.nosolve:
 
     if len(rows) > 0:
         excel.write_summary(f'{subfolderpath}/solindex.xlsx', rows)
-else: # Nosolve invoked
-    excel.write_to_file(f'{subfolderpath}/overview.xlsx', shifts, prefs, data.empty_assignments(shifts, prefs), personal_reqs)
-
-

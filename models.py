@@ -1,5 +1,5 @@
-from datetime import datetime, date, timedelta, tzinfo
-from typing import List, Dict, Any, NewType
+from datetime import datetime, date, timedelta, tzinfo, time
+from typing import List, Dict, Tuple, Any, NewType
 UserId = NewType('UserId', Any)
 ShiftId = NewType('ShiftId', int)
 
@@ -12,6 +12,18 @@ class Shift:
         self.begin = begin
         self.end = end
         self.capacity = capacity
+    @property
+    def length(self) -> timedelta:
+        return self.end - self.begin
+    @property
+    def is_long(self) -> bool:
+        return self.length > timedelta(hours=6)
+    @property
+    def starts_early(self) -> bool:
+        return self.begin.time() < time(9, 00)
+    @property
+    def ends_late(self) -> bool:
+        return self.end.time() > time(22,00) or self.begin.date() < self.end.date()
     def __eq__(self, other: "Shift"):
         return ((self.begin, self.end, self.capacity) == (other.begin, other.end, other.capacity))
     def __ne__(self, other: "Shift"):
@@ -35,8 +47,8 @@ class Shift:
         return f'{self.begin}-{self.end} Capacity {self.capacity}'
 class User:
     """User requirements"""
-    def __init__(self, user_id: UserId, min_hours: float, max_hours: float, only_long: bool, min_long: int):
-        self.id = user_id
+    def __init__(self, id: UserId, min_hours: float, max_hours: float, only_long: bool, min_long: int):
+        self.id = id
         self.min_hours = min_hours
         self.max_hours = max_hours
         self.only_long = only_long
@@ -49,7 +61,7 @@ class ShiftPreference:
         self.priority = priority
 class Schedule:
     """Schedule information"""
-    def __init__(self, users: "List[User]", shifts: "List[Shift]", preferences: "List[ShiftPreference]"):
+    def __init__(self, users: List[User], shifts: List[Shift], preferences: List[ShiftPreference]):
         self.users = users
         self.shifts = shifts
         self.preferences = preferences
@@ -58,7 +70,7 @@ class Schedule:
         self.shift = {s.id:s for s in shifts} # index id
         self._preference = None
     @property
-    def shifts_for_day(self) -> "Dict[date]":
+    def shifts_for_day(self) -> Dict[date, List[Shift]]:
         """Collects shifts for a given day for each day, 
         in order of start time
         Returns:
@@ -66,24 +78,28 @@ class Schedule:
         """
         if self._shifts_for_day is not None:
             return self._shifts_for_day # cached result
-        self._shifts_for_day = dict()
+        # Collect days in order
+        days = []
+        for s in self.shifts:
+            day = s.begin.date()
+            if day not in days:
+                days.append(day)
+        days.sort()
+        self._shifts_for_day = {day:[] for day in days}
         # Collect shifts for day
         for shift in self.shifts:
             day = shift.begin.date()
-            if day not in self._shifts_for_day:
-                self._shifts_for_day[day] = [shift]
-            else:
-                self._shifts_for_day[day].append(shift)
+            self._shifts_for_day[day].append(shift)
         # Sort
         for lst in self._shifts_for_day.values():
             lst.sort()
         return self._shifts_for_day
     @property
-    def preference(self) -> "Dict[ShiftId, UserId]":
+    def preference(self) -> Dict[Tuple[ShiftId, UserId], int]:
         """Collect priority number for each shift and user"""
         if self._preference is not None:
             return self._preference # cached result
         self._preference = dict()
         for pref in self.preferences:
-            self._preference[pref.user.id, pref.shift.id] = pref.priority
+            self._preference[pref.shift.id, pref.user.id] = pref.priority
         return self._preference

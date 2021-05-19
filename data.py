@@ -120,7 +120,7 @@ def load_data(data: dict) -> Schedule:
     rusers = data['users']
     shifts = get_shifts(rshifts, rtimezone)
     users = get_users(rusers)
-    preferences = get_preferences(shifts, users, rusers)
+    preferences = get_preferences(users, shifts, rusers)
     return Schedule(users,shifts,preferences)
 
 def json_compatible_solve(values: dict, data: dict) -> "dict[list,list]":
@@ -176,8 +176,8 @@ def json_compatible_solve(values: dict, data: dict) -> "dict[list,list]":
         capacity[s['id']] = s['capacity']
     # Add assigned shifts
     shifts = []
-    filled = {k[1]: 0 for k in values.keys()} # n of capacities for shift id
-    for (day, shift_id, user_email), assigned in values.items():
+    filled = {k: 0 for k in capacity.keys()} # n of capacities for shift id
+    for (shift_id, user_email), assigned in values.items():
         if assigned:
             shift = shift_for_id[shift_id].copy()
             shift['user_id'] = user_wiw_for_email[user_email]

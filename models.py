@@ -9,6 +9,7 @@ class Shift:
     """
     def __init__(self, id: ShiftId, begin: datetime, end: datetime, capacity: int):
         self.id = id
+        assert begin < end
         self.begin = begin
         self.end = end
         self.capacity = capacity
@@ -49,6 +50,7 @@ class User:
     """User requirements"""
     def __init__(self, id: UserId, min_hours: float, max_hours: float, only_long: bool, min_long: int):
         self.id = id
+        assert min_hours < max_hours
         self.min_hours = min_hours
         self.max_hours = max_hours
         self.only_long = only_long

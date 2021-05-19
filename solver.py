@@ -174,7 +174,6 @@ class ShiftSolver(cp_model.CpSolver):
             self.parameters.max_time_in_seconds = timeout
         super().Solve(self.__model)
         if super().StatusName() in ('FEASIBLE', 'OPTIMAL'):
-            self.assert_employees_hours()
             return True
         return False
     

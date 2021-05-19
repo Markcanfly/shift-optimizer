@@ -55,7 +55,7 @@ class ShiftModel(cp_model.CpModel):
             for s in self.schedule.shifts:
                 if (s.id,u.id) in self.variables:
                     worktime += self.variables[s.id, u.id] * s.length.seconds
-            self.Add(int(u.min_hours*60*60) <= worktime <= int(u.max_hours*60*60))
+            self.AddLinearConstraint(worktime, int(u.min_hours*60*60), int(u.max_hours*60*60))
 
     def AddLongShifts(self):
         """Make sure that everyone works at least n long shifts.
@@ -174,13 +174,14 @@ class ShiftSolver(cp_model.CpSolver):
             self.parameters.max_time_in_seconds = timeout
         super().Solve(self.__model)
         if super().StatusName() in ('FEASIBLE', 'OPTIMAL'):
+            self.assert_employees_hours()
             return True
         return False
     
     def get_overview(self):
         return self.get_shift_workers() + self.get_employees_hours()
 
-    def get_shift_workers(self, with_preferences=False):
+    def get_shift_workers(self):
         """Human-readable overview of the shifts
         Returns:
             Multiline string
@@ -189,7 +190,7 @@ class ShiftSolver(cp_model.CpSolver):
         for shift in self.__model.schedule.shifts:
             txt += f'{shift}'
             txt += ''.join(
-                [f'\n\t{u.id}' for u in self.schedule.users 
+                [f'\n\t{u.id} p={self.__model.schedule.preference[shift.id,u.id]}' for u in self.schedule.users 
                 if (shift.id,u.id) in self.__model.variables 
                 and self.Value(self.__model.variables[shift.id,u.id])])
             txt += '\n'
@@ -206,23 +207,7 @@ class ShiftSolver(cp_model.CpSolver):
             for shift in self.__model.schedule.shifts:
                 if (shift.id,u.id) in self.__model.variables:
                     work_hours += self.Value(self.__model.variables[shift.id,u.id]) * shift.length.seconds / (60*60)
-            txt += f'{u.id} works {round(u.min_hours)}<={work_hours}<={round(u.max_hours)} hours.\n'
-        return txt
-
-    def get_employee_shifts(self, employee_id):
-        """Human-readable shifts for an given employee
-        Args:
-            employee_id: the id for the employee to look up hours the shifts for
-        Returns:
-            Multiline string
-        """
-        txt = str()
-        for d, shifts in self.__model.shifts_for_day.items():
-            txt += f'Day {d}:\n'
-            for s in shifts:
-                if self.Value(self.__model.variables[(d,s,employee_id)]):
-                    shift_dur_str = f'{get_printable_time(self.__model.shift_data[(d,s)][1])}-{get_printable_time(self.__model.shift_data[(d,s)][2])}'
-                    txt += f'    Shift {s} {shift_dur_str}\n'
+            txt += f'{u.id} works {round(u.min_hours, 2)}<={round(work_hours, 2)}<={round(u.max_hours, 2)} hours.\n'
         return txt
 
     @property

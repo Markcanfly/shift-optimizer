@@ -35,12 +35,19 @@ class ShiftModel(cp_model.CpModel):
             for shifts_for_day in self.schedule.shifts_for_day.values():
                 self.AddLinearConstraint(sum([self.variables[s.id,u.id] for s in shifts_for_day if (s.id,u.id) in self.variables]), 0, n)
 
+    def AddShiftCapacity(self):
+        """Make sure that no more people are assigned to a shift than its capacity"""
+        for s in self.schedule.shifts:
+            self.AddLinearConstraint(
+                sum([self.variables[s.id,u.id] for u in self.schedule.users
+                if (s.id,u.id) in self.variables]), 0, s.capacity)
+
     def AddMinimumCapacityFilledNumber(self, n: int):
         """Make sure that at least n out of the sum(capacities) is filled.
         """
         self.Add(sum([assigned_val for assigned_val in self.variables.values()]) >= n)
 
-    def AddMinMaxMinutes(self):
+    def AddMinMaxWorkTime(self):
         """Make sure that everyone works within their schedule time range.
         """
         for u in self.schedule.users:
@@ -75,9 +82,11 @@ class ShiftModel(cp_model.CpModel):
                     # Technically: for each long shift, if p works on that long shift, 
                     # Make sure that for that day,
                     # The number of shifts worked for that person is exactly one.
-                    self.Add(sum([(self.variables[other_s.id,u.id]) 
-                    for other_s in self.schedule.shifts_for_day[s.begin.date()]
-                    if (other_s.id,u.id) in self.variables]) == 1).OnlyEnforceIf(self.variables[s.id, u.id])
+                    self.Add(sum([(
+                        self.variables[other_s.id,u.id]) 
+                        for other_s in self.schedule.shifts_for_day[s.begin.date()]
+                        if (other_s.id,u.id) in self.variables]
+                    ) == 1).OnlyEnforceIf(self.variables[s.id, u.id])
 
     def AddNoConflict(self):
         """Make sure that no one has two shifts on a day that overlap.
@@ -87,10 +96,10 @@ class ShiftModel(cp_model.CpModel):
             if shift1 & shift2: # bitwise and -> overlaps
                 conflicting_pairs.add((shift1.id,shift2.id))
 
-        # find pairs of incompatible (day,shift) ids
         for u in self.schedule.users:
             for s1_id, s2_id in conflicting_pairs:
-                # Both of them can't be true for the same person
+                # Both of them can't be assigned to the same person
+                # => their sum is less than 2
                 if (s1_id,u.id) in self.variables and (s2_id,u.id) in self.variables:
                     self.Add(self.variables[s1_id,u.id] + self.variables[s2_id,u.id] < 2)
 
@@ -98,12 +107,13 @@ class ShiftModel(cp_model.CpModel):
         """Make sure that no one has a shift in the morning,
         if they had a shift last evening.
         """
-        conflicting_pairs = self.get_nosleep_shifts() # Pairs of (d1,s1), (d2,s2)
+        conflicting_pairs = self.get_nosleep_shifts()
 
         for u in self.schedule.users:
             for s1, s2 in conflicting_pairs:
                 if (s1,u.id) in self.variables and (s2,u.id) in self.variables:
-                    # Both of them can't be true for the same person
+                    # Both of them can't be assigned to the same person
+                    # => their sum is less than 2
                     self.Add(self.variables[s1,u.id] + self.variables[s2, u.id] < 2)
 
     def MaximizeWelfare(self):
@@ -112,7 +122,7 @@ class ShiftModel(cp_model.CpModel):
         with their assigned shift.
         """
         self.Minimize(
-            sum([works*self.schedule.preference[shift,user] for (shift, user), works in self.variables.items() if (shift,user) in self.schedule.preference])
+            sum([works*self.schedule.preference[shift,user] for (shift, user), works in self.variables.items()])
         )
 
     # Helper methods
@@ -155,9 +165,10 @@ class ShiftSolver(cp_model.CpSolver):
         self.__model = ShiftModel(self.schedule)
         self.__model.AddMinimumCapacityFilledNumber(n=min_capacities_filled)
         self.__model.MaximizeWelfare()
+        self.__model.AddShiftCapacity()
         self.__model.AddLongShiftBreak()
         self.__model.AddSleep()
-        self.__model.AddMinMaxMinutes()
+        self.__model.AddMinMaxWorkTime()
         self.__model.AddMaxDailyShifts(1)
         if timeout is not None:
             self.parameters.max_time_in_seconds = timeout
@@ -171,27 +182,17 @@ class ShiftSolver(cp_model.CpSolver):
 
     def get_shift_workers(self, with_preferences=False):
         """Human-readable overview of the shifts
-        Args:
-            with_preferences: whether to add the preference values as well.
         Returns:
             Multiline string
         """
-        txt = str()
-
-        for d, shifts in self.__model.schedule.shifts_for_day.items():
-            txt += f'Day {d}:\n'
-            for s in shifts:
-                shift_dur_str = f'{get_printable_time(self.__model.shift_data[(d,s)][1])}-{get_printable_time(self.__model.shift_data[(d,s)][2])}'
-                txt += f'    Shift {s} {shift_dur_str}\n'
-                for p in self.__model.people:
-                    if self.Value(self.__model.variables[(d,s,p)]):
-                        txt += f'        {p}'
-                        if with_preferences:
-                            txt += f'preference {self.__model.pref_data[(d,s,p)]}'
-                        txt += '\n'
+        txt = ''
+        for shift in self.__model.schedule.shifts:
+            txt += f'{shift}'
+            txt += ''.join(
+                [f'\n\t{u.id}' for u in self.schedule.users 
+                if (shift.id,u.id) in self.__model.variables 
+                and self.Value(self.__model.variables[shift.id,u.id])])
             txt += '\n'
-        if with_preferences:
-            txt += f'Preference score: {self.ObjectiveValue()}\n'
         return txt
 
     def get_employees_hours(self):
@@ -200,13 +201,12 @@ class ShiftSolver(cp_model.CpSolver):
             Multiline string
         """
         txt = str()
-        for p in self.__model.people:
+        for u in self.__model.schedule.users:
             work_hours=0
-            for d, shifts in self.__model.shifts_for_day.items():
-                for s in shifts:
-                    s_hours = (self.__model.shift_data[(d,s)][2] - self.__model.shift_data[(d,s)][1]) / 60
-                    work_hours += self.Value(self.__model.variables[d,s,p]) * s_hours
-            txt += f'{p} works {work_hours} hours.\n'
+            for shift in self.__model.schedule.shifts:
+                if (shift.id,u.id) in self.__model.variables:
+                    work_hours += self.Value(self.__model.variables[shift.id,u.id]) * shift.length.seconds / (60*60)
+            txt += f'{u.id} works {round(u.min_hours)}<={work_hours}<={round(u.max_hours)} hours.\n'
         return txt
 
     def get_employee_shifts(self, employee_id):

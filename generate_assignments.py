@@ -36,21 +36,17 @@ if not args.nosolve:
         if solver.Solve(
                 timeout=args.timeout,
                 min_capacities_filled=n):       
-            print(f'Prefscore: {solver.ObjectiveValue()} Completely empty shifts: {solver.EmptyShifts()} Unfilled capacities: {solver.UnfilledCapacities()} in {round(solver.WallTime(),2)} seconds', end='')
+            print(f'Prefscore: {solver.ObjectiveValue()} Unfilled capacities: {solver.UnfilledCapacities} in {round(solver.WallTime(),2)} seconds', end='')
             if solver.StatusName() != 'OPTIMAL':
                 print(' !SUBOPTIMAL SOLVE! Try to run with more time', end='')
             print()
-            xlsxsubpath = f'sols/{n}.xlsx'
-            xlsxfilepath = f'{subfolderpath}/{xlsxsubpath}'
+            filename = f'{n}.json'
             # Write to excel and add index for the root later
-            rows.append((xlsxsubpath, deepcopy(solver)))
+            rows.append((filename, deepcopy(solver)))
 
             with open(f'{subfolderpath}/sols/{n}.json', 'w', encoding='utf8') as jsonfile:
-                json.dump(data.json_compatible_solve(solver.Values(), jsondata), jsonfile, indent=4, ensure_ascii=False)
-        
-
+                json.dump(data.json_compatible_solve(solver.Values, jsondata), jsonfile, indent=4, ensure_ascii=False)
         else: # No more solutions to be found
             break
-
     if len(rows) > 0:
-        excel.write_summary(f'{subfolderpath}/solindex.xlsx', rows)
+        data.write_report(f'{subfolderpath}/sols/solindex.txt', rows)

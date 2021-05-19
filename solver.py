@@ -225,6 +225,7 @@ class ShiftSolver(cp_model.CpSolver):
                     txt += f'    Shift {s} {shift_dur_str}\n'
         return txt
 
+    @property
     def Values(self) -> dict:
         """Returns a dictionary with the solver values.
         Returns:
@@ -236,69 +237,50 @@ class ShiftSolver(cp_model.CpSolver):
         
         return assigned
 
+    @property
     def PrefScore(self) -> float:
         return self.ObjectiveValue()
 
-    def PrefModes(self) -> int:
-        freq = dict()
-        pref = self.__model.pref_data
-
-        for (d,s,p), val in self.Values().items():
-            if val == 1: # Count the pref score
-                # Here we assume pref[d,s,p] is not None, because model can't assign None
-                if pref[d,s,p] not in freq.keys():
-                    freq[pref[d,s,p]] = 1
-                else:
-                    freq[pref[d,s,p]] += 1
-        # Find most common elements
-        maxfreq = max(freq.values())
-        modes = []
-        for pscore, count in freq.items():
-            if count == maxfreq:
-                modes.append(pscore)
-
-        return modes
-
-    def EmptyShifts(self) -> int:
-        assigned = self.Values()
-        n_empty_shifts = 0
-        for s in self.__model.schedule.shifts:
-            if sum([assigned[s.id,u.id] for u in self.__model.schedule.users if (s.id,u.id) in assigned]) == 0:
-                n_empty_shifts += 1
-        
-        return n_empty_shifts
-
+    @property
     def NShifts(self) -> int:
         return len(self.__model.schedule.shifts)
 
+    @property
     def UnfilledCapacities(self) -> int:
-        assigned = self.Values()
+        assigned = self.Values
         unfilled_capacities = 0
         for s in self.__model.schedule.shifts:
             unfilled_capacities += (s.capacity- sum([assigned[s.id,u.id] for u in self.__model.schedule.users if (s.id,u.id) in assigned]))
         return unfilled_capacities
-
+    
+    @property
+    def FilledCapacities(self) -> int:
+        return self.NCapacities - self.UnfilledCapacities
+    @property
     def NCapacities(self) -> int:
         capacities = 0
-        for capacity, begin, end in self.__model.shift_data.values():
-            del begin, end
-            capacities += capacity
+        for shift in self.__model.schedule.shifts:
+            capacities += shift.capacity
         return capacities
-
+    @property
     def UnfilledHours(self) -> float:
-        assigned = self.Values()
+        assigned = self.Values
         unfilled_hours = 0
-        for (d,s), shift_props in self.__model.shift_data.items():
-            unfilled_capacities_on_this_shift = (shift_props[0] - sum([assigned[d,s,p] for p in self.__model.people]))
-            length_of_shift_in_hours = (shift_props[2] - shift_props[1]) / 60
+        for shift in self.__model.schedule.shifts:
+            unfilled_capacities_on_this_shift = (shift.capacity - sum([assigned[shift.id,u.id] for u in self.__model.schedule.users if (shift.id,u.id) in assigned]))
+            length_of_shift_in_hours = shift.length.seconds / (60*60)
             unfilled_hours += unfilled_capacities_on_this_shift * length_of_shift_in_hours
         return unfilled_hours
-
+    @property
+    def FilledHours(self) -> float:
+        return self.Hours - self.UnfilledHours
+    @property
     def Hours(self) -> float:
         n_hours = 0
-        for capacity, begin_mins, end_mins in self.__model.shift_data.values():
-            n_hours += ((end_mins-begin_mins)/60)*capacity
+        for shift in self.__model.schedule.shifts:
+            n_hours += shift.length.seconds / (60*60)
         return n_hours
 
+    @property
     def NPeople(self) -> int:
         return len(self.__model.people)

@@ -1,6 +1,7 @@
 """Handling of raw data from files"""
 import json
-from typing import List, Dict
+from solver import ShiftSolver
+from typing import List, Dict, Tuple
 from requests.auth import HTTPBasicAuth
 from datetime import datetime
 from models import Schedule, User, Shift, ShiftPreference
@@ -244,3 +245,16 @@ def override_preqs(filename, preqs):
     
     for person in override:
         preqs[person] = override[person]
+
+def write_report(filename: str, solutions: List[Tuple[str,ShiftSolver]]):
+    """Generate and write to file a report about the several solutions"""
+    txt = ''
+    for sol_file, sol in solutions:
+        txt += f"""----- {sol_file} -----
+Capacities filled: {sol.FilledCapacities}/{sol.NCapacities} ({round(sol.FilledCapacities/sol.NCapacities*100,2)}%)
+Hours filled: {sol.FilledHours}/{sol.Hours} ({round(sol.FilledHours/sol.Hours*100,2)}%)
+Prefscore: {sol.PrefScore}
+-------
+"""
+    with open(filename, 'w', encoding='utf8') as txtfile:
+        txtfile.write(txt)

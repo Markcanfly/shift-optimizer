@@ -1,9 +1,10 @@
 """Handling of raw data from files"""
 import json
-from typing import Tuple
-from typing import List, Dict
+from solver import ShiftSolver
+from typing import List, Dict, Tuple
 from requests.auth import HTTPBasicAuth
 from datetime import datetime
+from models import Schedule, User, Shift, ShiftPreference
 import pytz
 
 def filter_unique_ordered(l):
@@ -22,113 +23,29 @@ timestamp = int
 def datetime_string(ts: timestamp) -> str:
     return datetime.fromtimestamp(int(ts)).isoformat()
 
-def shifts_from_json(shift_dict) -> dict:
-    """Read the shift data from a json,
-    and return it in a solver-compatible format.
-    Expects a json structured like such:
-        "Hétfő 04.": [
-        {
-            "capacity": 2,
-            "begin": [
-                8,
-                45
-            ],
-            "end": [
-                16,
-                0
-            ]
-        },...
-    Returns:
-        dict of sdata[day_id, shift_id] = {
-            'capacity': 2,
-            'begin': 525,
-            'end': 960,
-            'begintime': unixtime,
-            'endtime': unixtime,
-            'position': position_name
-        }
-    """
-    def to_mins(t):
-        return t[0]*60 + t[1]
-
-    sdata = dict()
-
-    for day_id, shifts in shift_dict.items():
-        for shift_id, shift in enumerate(shifts):
-            sdata[day_id,shift_id] = {
-                'capacity': shift['capacity'],
-                'begin': to_mins(shift['begin']),
-                'end': to_mins(shift['end']),
-                'begintime': shift['begintime'],
-                'endtime': shift['endtime'],
-                'position': shift['position']
-            }
-    
-    return sdata
-
-def get_days_sorted(shifts: "List[Dict]", timezone) -> list:
-    """Takes a dict with items
-    {'begin': timestamp}
-    and returns sorted list of day ids"""
-    days = set()
-    for shift in shifts:
-        days.add(datetime.fromtimestamp(shift['begin']).astimezone(pytz.timezone(timezone)).date())
-    days = list(sorted(days))
-    days = [d.day for d in days]
-    return days
-
-def shift_dict(rshifts: "List[Dict]", days: "List[str]", timezone: str) -> "Dict[str, int]":
+def get_shifts(rshifts: List[Dict], timezone: str) -> List[Shift]:
     """Creates the necessary shift dict format
     Arguments:
         rshifts: rshifts
-        days: list of ordered day numbers
         timezone: timezone name
     Returns:
-        shifts[day, shift] = {cap, begin, end}
+        list of Shifts
     """
-    lshifts = {d:[] for d in days} # List of shifts for each day
+    shifts = list()
     for shift in rshifts:
         begin = datetime.fromtimestamp(int(float(shift['begin']))).astimezone(pytz.timezone(timezone))
         end = datetime.fromtimestamp(int(float(shift['end']))).astimezone(pytz.timezone(timezone))
-        lshifts[begin.day].append(
-            {
-                'id': shift['id'],
-                'capacity': shift['capacity'],
-                'begin': begin.hour * 60 + begin.minute,
-                'end': end.hour * 60 + end.minute
-            }
+        shifts.append(
+            Shift(
+                id=int(shift['id']),
+                begin=begin,
+                end=end,
+                capacity=shift['capacity']
+            )
         )
-    # Sort then add to (day,shift) keyed dict
-    shifts = {}
-    for day, shiftarray in lshifts.items():
-        shiftarray.sort(key=lambda s:s['begin'])
-        for shift in shiftarray: # Organize by id
-            shifts[day, int(shift['id'])] = {
-                'capacity': shift['capacity'],
-                'begin': shift['begin'],
-                'end': shift['end']
-            }
     return shifts
 
-def prefscores(shifts: "Dict[int, int]", users: "Dict") -> "Dict[int, int, int]":
-    """
-    Arguments:
-        shifts: sdata[day, shiftid]
-        users: [userdata]
-    Returns:
-        prefscore[day,shift,person] = int
-    """
-    prefscore_for_id = {sid:[] for day,sid in shifts.keys()}
-    for user in users:
-        for sid, pref in user['preferences'].items():
-            prefscore_for_id[int(sid)].append((user['email'],pref))
-    prefscore = {}
-    for day, shift in shifts:
-        for person, pref in [elem for elem in prefscore_for_id[shift]]:
-            prefscore[day,shift,person] = pref
-    return prefscore
-
-def requirements(users: "List[Dict]", min_ratio=0.6) -> "Dict[str]":
+def get_users(rusers: List[Dict], min_ratio=0.6) -> List[User]:
     """Get the schedule requirements for this person
     Arguments:
         users: [
@@ -141,24 +58,36 @@ def requirements(users: "List[Dict]", min_ratio=0.6) -> "Dict[str]":
         ]
         min_ratio: float, ratio of min hours to max hours
     Returns:
-        req[userid] = {
-            'min': minimum number of hours
-            'max': maximum number of hours
-            'min_long_shifts': minimum number of long shifts for this person,
-            'only_long_shifts': whether this user can only take long shifts
-        }
+        list of users
     """ # WARNING highly custom code for Wolt Hungary
-    reqs = {}
-    for user in users:
-        reqs[user['email']] = {
-            'min':int(user['hours_adjusted'] * min_ratio),
-            'max':int(user['hours_adjusted'] if user['hours_adjusted'] > 0 else user['hours_max']),
-            'min_long_shifts': 1, # Everybody needs at least one
-            'only_long_shifts': user['hours_max'] >= 35
-        }
-    return reqs
+    users = list()
+    for user in rusers:
+        users.append(
+            User(
+                id=user['email'],
+                min_hours=user['hours_adjusted'] * min_ratio,
+                max_hours=user['hours_adjusted'],
+                only_long=(user['hours_max'] >= 35), # Fulltimer or not
+                min_long=1
+            )
+        )
+    return users
 
-def load_data(data: dict) -> Tuple[dict, dict, dict]:
+def get_preferences(users: List[User], shifts: List[Shift], rusers: List[dict]) -> List[ShiftPreference]:
+    # Index by id
+    user = {u.id:u for u in users}
+    shift = {s.id:s for s in shifts}
+    preferences = []
+    for ruser in rusers:
+        for rshiftid, priority in ruser['preferences'].items():
+            preferences.append(ShiftPreference(
+                user=user[ruser['email']],
+                shift=shift[int(rshiftid)],
+                priority=priority
+            ))
+    return preferences
+
+def load_data(data: dict) -> Schedule:
     """
     Args:
         data: {
@@ -185,20 +114,15 @@ def load_data(data: dict) -> Tuple[dict, dict, dict]:
                 }
             ]
         }
-    And returns a tuple of
-    (
-        shifts: dict[dayid, shiftid] = {}
-        preferences
-        requirements
-    )"""
+    Returns:
+        Schedule with the associated data"""
     rshifts = data['shifts']
     rtimezone = data['timezone']
     rusers = data['users']
-    days = get_days_sorted(rshifts, rtimezone)
-    shifts = shift_dict(rshifts, days, rtimezone)
-    prefs = prefscores(shifts, rusers)
-    reqs = requirements(rusers)
-    return shifts, prefs, reqs
+    shifts = get_shifts(rshifts, rtimezone)
+    users = get_users(rusers)
+    preferences = get_preferences(users, shifts, rusers)
+    return Schedule(users,shifts,preferences)
 
 def json_compatible_solve(values: dict, data: dict) -> "dict[list,list]":
     """Create a solution object
@@ -253,8 +177,8 @@ def json_compatible_solve(values: dict, data: dict) -> "dict[list,list]":
         capacity[s['id']] = s['capacity']
     # Add assigned shifts
     shifts = []
-    filled = {k[1]: 0 for k in values.keys()} # n of capacities for shift id
-    for (day, shift_id, user_email), assigned in values.items():
+    filled = {k: 0 for k in capacity.keys()} # n of capacities for shift id
+    for (shift_id, user_email), assigned in values.items():
         if assigned:
             shift = shift_for_id[shift_id].copy()
             shift['user_id'] = user_wiw_for_email[user_email]
@@ -321,3 +245,16 @@ def override_preqs(filename, preqs):
     
     for person in override:
         preqs[person] = override[person]
+
+def write_report(filename: str, solutions: List[Tuple[str,ShiftSolver]]):
+    """Generate and write to file a report about the several solutions"""
+    txt = ''
+    for sol_file, sol in solutions:
+        txt += f"""----- {sol_file} -----
+Capacities filled: {sol.FilledCapacities}/{sol.NCapacities} ({round(sol.FilledCapacities/sol.NCapacities*100,2)}%)
+Hours filled: {sol.FilledHours}/{sol.Hours} ({round(sol.FilledHours/sol.Hours*100,2)}%)
+Prefscore: {sol.PrefScore}
+-------
+"""
+    with open(filename, 'w', encoding='utf8') as txtfile:
+        txtfile.write(txt)

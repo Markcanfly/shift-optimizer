@@ -1,5 +1,5 @@
 from ortools.sat.python import cp_model
-from itertools import combinations, product
+from itertools import combinations, permutations
 from models import Schedule, Shift, ShiftId, User, ShiftPreference
 from typing import List, Dict, Any, NoReturn, Tuple, Set, Iterable, Optional
 from datetime import timedelta
@@ -132,13 +132,14 @@ class ShiftModel(cp_model.CpModel):
         One is a late shift, and the other is an early shift on the following day
         """
         conflicting = set()
-        prev_day_late_shifts = []
-        for shifts_for_day in self.schedule.shifts_for_day.values():
-            early_shifts = [s for s in shifts_for_day if s.starts_early]
-            for s1, s2 in product(early_shifts, prev_day_late_shifts):
-                conflicting.add((s1.id, s2.id))
-            prev_day_late_shifts = [s for s in shifts_for_day if s.ends_late]
-
+        for shift, other_shift in permutations(self.schedule.shifts, r=2):
+            offtime_between = other_shift.begin - shift.end
+            if shift.is_long:
+                if 0 <= offtime_between <= timedelta(hours=11):
+                    conflicting.add((shift, other_shift))
+            else:
+                if 0 <= offtime_between <= timedelta(hours=9):
+                    conflicting.add((shift, other_shift))
         return conflicting
 
 class ShiftSolver(cp_model.CpSolver):

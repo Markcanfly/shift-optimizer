@@ -40,7 +40,8 @@ def get_shifts(rshifts: List[Dict], timezone: str) -> List[Shift]:
                 id=int(shift['id']),
                 begin=begin,
                 end=end,
-                capacity=shift['capacity']
+                capacity=shift['capacity'],
+                position=shift['position']
             )
         )
     return shifts
@@ -54,6 +55,7 @@ def get_users(rusers: List[Dict]) -> List[User]:
                 hours_adjusted
                 hours_max
                 preferences
+                positions
             }
         ]
         min_ratio: float, ratio of min hours to max hours
@@ -69,7 +71,8 @@ def get_users(rusers: List[Dict]) -> List[User]:
                 min_hours=user['hours_adjusted'] * min_ratio,
                 max_hours=user['hours_adjusted'],
                 only_long=(user['hours_max'] >= 35), # Fulltimer or not
-                min_long=1
+                min_long=1,
+                positions=user['positions']
             )
         )
     return users
@@ -144,7 +147,9 @@ def json_compatible_solve(values: dict, data: dict) -> "dict[list,list]":
                 {
                     'email': str
                     'hours_adjusted': float
-                
+                    'positions': [
+                        position_id
+                    ]
                     'hours_max': float
                     'wiw_id': wiw_id
                     'preferences': {

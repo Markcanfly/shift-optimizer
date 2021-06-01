@@ -7,12 +7,13 @@ class Shift:
     """Shift timeframe and capacity
     Sorts based on begin time
     """
-    def __init__(self, id: ShiftId, begin: datetime, end: datetime, capacity: int):
+    def __init__(self, id: ShiftId, begin: datetime, end: datetime, capacity: int, position: int):
         self.id = id
         assert begin < end
         self.begin = begin
         self.end = end
         self.capacity = capacity
+        self.position = position
     @property
     def length(self) -> timedelta:
         return self.end - self.begin
@@ -48,13 +49,16 @@ class Shift:
         return f'{self.begin}-{self.end} Capacity {self.capacity}'
 class User:
     """User requirements"""
-    def __init__(self, id: UserId, min_hours: float, max_hours: float, only_long: bool, min_long: int):
+    def __init__(self, id: UserId, positions: List[int], min_hours: float, max_hours: float, only_long: bool, min_long: int):
         self.id = id
+        self.positions = positions
         assert min_hours < max_hours
         self.min_hours = min_hours
         self.max_hours = max_hours
         self.only_long = only_long
         self.min_long = min_long
+    def can_take(self, shift: Shift) -> bool:
+        return shift.position in self.positions
 class ShiftPreference:
     """Stores a User-Shift relation with a preference score"""
     def __init__(self, user: User, shift: Shift, priority: int):

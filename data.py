@@ -45,7 +45,7 @@ def get_shifts(rshifts: List[Dict], timezone: str) -> List[Shift]:
         )
     return shifts
 
-def get_users(rusers: List[Dict], min_ratio=0.6) -> List[User]:
+def get_users(rusers: List[Dict]) -> List[User]:
     """Get the schedule requirements for this person
     Arguments:
         users: [
@@ -62,6 +62,7 @@ def get_users(rusers: List[Dict], min_ratio=0.6) -> List[User]:
     """ # WARNING highly custom code for Wolt Hungary
     users = list()
     for user in rusers:
+        min_ratio = 0.85 if user['hours_max'] >= 35 else 0.5
         users.append(
             User(
                 id=user['email'],

@@ -116,6 +116,17 @@ class ShiftModel(cp_model.CpModel):
                     # => their sum is less than 2
                     self.Add(self.variables[s1,u.id] + self.variables[s2, u.id] < 2)
 
+    def AddNonFulltimerMaxShifts(self, n: int):
+        """Make sure that non-fulltimers (people who can take non-long shifts)
+        Can take at most n shifts.
+        """
+        for u in self.schedule.users:
+            if not u.only_long:
+                self.AddLinearConstraint(
+                    sum([self.variables[s.id,u.id] for s in self.schedule.shifts if (s.id,u.id) in self.variables]),
+                    0, 
+                    n)
+
     def MaximizeWelfare(self):
         """Maximize the welfare of the employees.
         This target will minimize the dissatisfaction of the employees
@@ -173,6 +184,7 @@ class ShiftSolver(cp_model.CpSolver):
         self.__model.AddSleep()
         self.__model.AddMinMaxWorkTime()
         self.__model.AddMaxDailyShifts(1)
+        self.__model.AddNonFulltimerMaxShifts(5)
         if timeout is not None:
             self.parameters.max_time_in_seconds = timeout
         super().Solve(self.__model)

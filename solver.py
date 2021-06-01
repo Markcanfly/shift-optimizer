@@ -129,17 +129,19 @@ class ShiftModel(cp_model.CpModel):
 
     def get_nosleep_shifts(self) -> Set[Tuple[Shift,Shift]]:
         """Collect pairs of shifts that conflict in the following way:
-        One is a late shift, and the other is an early shift on the following day
+        The time between the end of one and the begin of the other is
+        less than 11 hours for long shifts, and 9 hours for non-long.
         """
         conflicting = set()
         for shift, other_shift in permutations(self.schedule.shifts, r=2):
-            offtime_between = other_shift.begin - shift.end
-            if shift.is_long:
-                if 0 <= offtime_between <= timedelta(hours=11):
-                    conflicting.add((shift, other_shift))
-            else:
-                if 0 <= offtime_between <= timedelta(hours=9):
-                    conflicting.add((shift, other_shift))
+            if shift.end < other_shift.begin:
+                offtime_between = other_shift.begin - shift.end
+                if shift.is_long:
+                    if 0 <= offtime_between <= timedelta(hours=11):
+                        conflicting.add((shift, other_shift))
+                else:
+                    if 0 <= offtime_between <= timedelta(hours=9):
+                        conflicting.add((shift, other_shift))
         return conflicting
 
 class ShiftSolver(cp_model.CpSolver):

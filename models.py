@@ -58,7 +58,7 @@ class User:
         self.min_long = min_long
         self._availabilities = None
     def can_take(self, shift: Shift) -> bool:
-        return shift.position in self.positions
+        return shift.position in self.positions and (not self.only_long or shift.is_long) 
     def set_availabilities_for(self, schedule):
         """Extract a set of time intervals 
         in which the user is available for work,

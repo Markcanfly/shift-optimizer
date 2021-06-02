@@ -1,8 +1,7 @@
 from datetime import datetime, date, timedelta, tzinfo, time
-from typing import List, Dict, Tuple, Any, NewType
+from typing import List, Dict, Tuple, Set, Any, NewType
 UserId = NewType('UserId', Any)
 ShiftId = NewType('ShiftId', int)
-
 class Shift:
     """Shift timeframe and capacity
     Sorts based on begin time
@@ -57,14 +56,45 @@ class User:
         self.max_hours = max_hours
         self.only_long = only_long
         self.min_long = min_long
+        self._availabilities = None
     def can_take(self, shift: Shift) -> bool:
         return shift.position in self.positions
+    def set_availabilities_for(self, schedule):
+        """Extract a set of time intervals 
+        in which the user is available for work,
+        indicated by the fact that they've taken at least a single shift in that span,
+        and set it to a member variable, accessible through a property.
+        """
+        self._availabilities = set()
+        for preference in schedule.preferences:
+            if preference.user == self:
+                self._availabilities.add((preference.shift.begin, preference.shift.end))
+    @property
+    def availabilities(self) -> Set[Tuple[datetime,datetime]]:
+        if self._availabilities is None:
+            raise ValueError("Availabilities accessed before having been set")
+        return self._availabilities
+    def is_available_at(self, shift: Shift) -> bool:
+        """Checks whether the user can take a shift,
+        based on whether they have the necessary position,
+        and if they're available at that time.
+        """
+        for begin, end in self.availabilities:
+            if begin <= shift.begin <= end and begin <= shift.end <= end:
+                return True # User is available for this shift 
+        return False
+
 class ShiftPreference:
     """Stores a User-Shift relation with a preference score"""
     def __init__(self, user: User, shift: Shift, priority: int):
         self.user = user
         self.shift = shift
         self.priority = priority
+    def __eq__(self, other: "ShiftPreference") -> bool:
+        return (
+            self.user == other.user and
+            self.shift == other.shift
+        ) # Ignore priority when checking equality
 class Schedule:
     """Schedule information"""
     def __init__(self, users: List[User], shifts: List[Shift], preferences: List[ShiftPreference]):
@@ -109,3 +139,23 @@ class Schedule:
         for pref in self.preferences:
             self._preference[pref.shift.id, pref.user.id] = pref.priority
         return self._preference
+    def add_forced_availabilities(self):
+        """Create valid ShiftPreferences for cases where
+        the user is available at the time of a shift
+        (meaning they signed up for another shift in that timeframe),
+        and they can take the shift based on their positions,
+        but they didn't originally sign up for that shift.
+        """
+        self._preference = None # Force recalculate preference cache
+        for user in self.users:
+            user.set_availabilities_for(schedule=self) # Calculate availability intervals
+            for shift in self.shifts:
+                if user.can_take(shift) and user.is_available_at(shift):
+                    sp = ShiftPreference(
+                        user=user,
+                        shift=shift,
+                        priority=100 # very low priority
+                    )
+                    if sp not in self.preferences:
+                        # Avoid overriding existing preferences
+                        self.preferences.append(sp)

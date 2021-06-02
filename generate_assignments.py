@@ -7,15 +7,28 @@ from pathlib import Path
 from copy import deepcopy
 
 parser = argparse.ArgumentParser()
-parser.add_argument('file', help='Path to the .json file with the schedule data.')
-parser.add_argument('--no-solve', dest='nosolve', help="Don't solve, just create the overview excel.", action='store_true')
-parser.add_argument('-t', '--timeout', help='The maximum time in seconds that the solver can take to find an optimal solution.', default=None, type=int)
-parser.add_argument('-c', '--capacities', help='The percentage of capacities to fill as a minimum', default=96.0, type=float)
+parser.add_argument('file', 
+                        help='Path to the .json file with the schedule data.')
+
+parser.add_argument('--no-solve', dest='nosolve', 
+                        help="Don't solve, just create the overview excel.", action='store_true')
+
+parser.add_argument('-t', '--timeout', 
+                        help='The maximum time in seconds that the solver can take to find an optimal solution.', default=None, type=int)
+
+parser.add_argument('-c', '--capacities', 
+                        help='The percentage of capacities to fill as a minimum', default=96.0, type=float)
+
+parser.add_argument('-f', '--force-availabilities', dest='force_available', 
+                        help='Extend shift availability for every position for each user.', action='store_true')
 args = parser.parse_args()
 
 with open(args.file, 'r') as f:
     jsondata = json.load(f)
     schedule = data.load_data(jsondata)
+
+if args.force_available: # Optionally extend solution space
+    schedule.add_forced_availabilities()
 
 solver = ShiftSolver(schedule)
 

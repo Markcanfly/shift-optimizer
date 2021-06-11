@@ -64,11 +64,11 @@ def get_users(rusers: List[Dict]) -> List[User]:
     """ # WARNING highly custom code for Wolt Hungary
     users = list()
     for user in rusers:
-        min_ratio = 0.85 if user['hours_max'] >= 35 else 0.5
+        min_hours = user['hours_adjusted']**0.89 if user['hours_max'] >= 35 else 0.6 * user['hours_adjusted']
         users.append(
             User(
                 id=user['email'],
-                min_hours=user['hours_adjusted'] * min_ratio,
+                min_hours=min_hours,
                 max_hours=user['hours_adjusted'],
                 only_long=(user['hours_max'] >= 35), # Fulltimer or not
                 min_long=1,

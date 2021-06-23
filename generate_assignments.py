@@ -12,9 +12,6 @@ def main():
     parser.add_argument('file', 
                             help='Path to the .json file with the schedule data.')
 
-    parser.add_argument('--no-solve', dest='nosolve', 
-                            help="Don't solve, just create the overview excel.", action='store_true')
-
     parser.add_argument('-t', '--timeout', 
                             help='The maximum time in seconds that the solver can take to find an optimal solution.', default=None, type=int)
 
